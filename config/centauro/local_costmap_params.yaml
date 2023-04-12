@@ -1,0 +1,31 @@
+local_costmap:
+  update_frequency: 10.0
+  publish_frequency: 15.0
+  #static_map: false
+  rolling_window: true
+  width: 5.0
+  height: 5.0
+  resolution: 0.02
+
+  #footprint: [[0.4, 0.29], [0.4, -0.29], [-0.4, -0.29], [-0.4 ,0.29]]
+  footprint_padding: 0.15
+
+  plugins:
+    - {name: static_layer,    type: "costmap_2d::StaticLayer"}
+    - {name: obstacles_layer, type: "costmap_2d::ObstacleLayer"}
+    - {name: inflater_layer,  type: "costmap_2d::InflationLayer"}
+
+  static_layer:
+    map_topic: /projected_map
+    subscribe_to_updates: true
+    lethal_cost_threshold: 100 #default:100 -> value=lethal from map
+
+  obstacles_layer:
+    footprint_clearing_enabled: true
+    observation_sources: velodyne #d435i
+    velodyne: {sensor_frame: head_down, data_type: PointCloud2, topic: /velodyne_points_filtered, marking: true, clearing: true}
+    #d435i: {sensor_frame: D435i_camera_depth_optical_frame, data_type: PointCloud2, topic: /D435i_camera/depth/color/points_filtered, marking: true, clearing: true}
+
+  inflater_layer:
+    inflation_radius: 1.2 #0.075
+    cost_scaling_factor: 6.5  # Increasing --> decrease cost values, 10 default
