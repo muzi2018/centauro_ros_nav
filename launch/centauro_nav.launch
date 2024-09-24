@@ -1,15 +1,19 @@
 <?xml version="1.0" ?>
 <launch>
 
-    <arg name="empty_map" default="false"/>
-    <arg name="use_sim_time" default="false"/>
+    <arg name="empty_map" default="true"/>
+    <arg name="use_sim_time" default="true"/>
+    <arg name="cartesio" default="true"/>
+    
 
+    <!-- MoveBase for starting Nav Stack with config file -->
     <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
 
         <remap from="map" to="projected_map"/>
 
+        <!-- Remap for later Node -->
         <remap from="/cmd_vel" to="/centauro_plan/cmd_vel"/>
-        <!-- <remap from="odom" to="/odometry/filtered"/> -->
+        
         <rosparam file="$(find centauro_ros_nav)/config/centauro/move_base_params.yaml" command="load"/>
         <rosparam file="$(find centauro_ros_nav)/config/centauro/costmap_common_params.yaml" command="load" ns="global_costmap" />
         <rosparam file="$(find centauro_ros_nav)/config/centauro/costmap_common_params.yaml" command="load" ns="local_costmap" />
@@ -21,30 +25,35 @@
 
     </node>
 
-    <node pkg="centauro_ros_nav" type="NavCtrlNode" name="NavCtrlNode"/>
+    <!-- <node pkg="centauro_ros_nav" type="NavCtrlNode" name="NavCtrlNode"/> -->
 
+    <!-- Add time stamp to cmd vel Twist to TwistStamped -->
+    <node pkg="centauro_ros_nav" name="cmd_add_stamp" type="cmd_add_stamp"/>
+
+    <!-- Connect fixed_frame with map frame -->
     <node pkg="tf" name="static_transform_publisher" type="static_transform_publisher"
         args="0 0 0 0 0 0 fixed_frame map 1"/>
 
-    <node pkg="centauro_ros_nav" name="cmd_add_stamp" type="cmd_add_stamp"/>
-
+    <!-- Load Empty Map -->
     <node if="$(arg empty_map)" pkg="map_server" name="empty_map" type="map_server" args="$(find centauro_ros_nav)/maps/empty.yaml">
         <remap from="map" to="projected_map"/>
         <param name="frame_id" value="pelvis"/>
     </node>
     
+    <!-- Use Octomap in case of not empty map -->
     <group unless="$(arg empty_map)">
         <node pkg="octomap_server" type="octomap_server_node" name="octomap_server_velodyne">
             <param name="resolution" value="0.03" /> 
             <param name="frame_id" type="string" value="fixed_frame" />
             <param name="sensor_model/max_range" value="20.0" />
-            <remap from="cloud_in" to="/velodyne_points_filtered" />
+            <remap from="cloud_in" to="/velodyne_points" />
             
             <remap from="octomap_point_cloud_centers" to="octomap_velodyne" />
             
             <param name="latch" value="false"/> 
                         
-            <param name="base_frame_id" value="head_down" />
+            <!-- <param name="base_frame_id" value="head_down" /> -->
+            <param name="base_frame_id" value="pelvis" />
             <param name="pointcloud_min_z" value="0.5" />
             <param name="pointcloud_max_z" value="2.5" />
             <param name="sensor_model/hit" value="0.55" />  <!--default 0.7-->
@@ -52,54 +61,10 @@
             <param name="sensor_model/min" value="0.45" />  <!--default 0.12-->
             <param name="sensor_model/max" value="0.55" />  <!--default 0.97-->
         </node>
-        
-    <!--
-        <node pkg="pointcloud_to_laserscan" name="pointcloud_to_laserscan_node" type="pointcloud_to_laserscan_node">
-            <remap from="cloud_in" to="/velodyne_points_filtered"/>
-            <remap from="scan" to="velodyne_laserscan"/>
-            <param name="target_frame" value="pelvis"/>
-            <param name="min_height" value="0.07"/>
-            <param name="max_height" value="1.7"/>		
-        </node>
-        
-	    <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
-            <remap from="scan" to="velodyne_laserscan"/>
-            <remap from="map" to="projected_map"/>
-            
-            <param name="base_frame" value="pelvis"/>
-            <param name="odom_frame" value="fixed_frame"/>
-            <param name="map_frame" value="map"/>
-            <param name="map_update_interval" value="0.15"/>
-            <param name="maxUrange" value="6.0"/>
-            <param name="sigma" value="0.05"/>
-            <param name="kernelSize" value="1"/>
-            <param name="lstep" value="0.05"/>
-            <param name="astep" value="0.05"/>
-            <param name="iterations" value="5"/>
-            <param name="lsigma" value="0.075"/>
-            <param name="ogain" value="3.0"/>
-            <param name="lskip" value="0"/>
-            <param name="srr" value="0.01"/>
-            <param name="srt" value="0.02"/>
-            <param name="str" value="0.01"/>
-            <param name="stt" value="0.02"/>
-            <param name="linearUpdate" value="0.25"/>
-            <param name="angularUpdate" value="0.262"/>
-            <param name="temporalUpdate" value="0.2"/>
-            <param name="resampleThreshold" value="0.5"/>
-            <param name="particles" value="300"/>
-            <param name="xmin" value="-50.0"/>
-            <param name="ymin" value="-50.0"/>
-            <param name="xmax" value="50.0"/>
-            <param name="ymax" value="50.0"/>
-            <param name="delta" value="0.05"/>
-            <param name="llsamplerange" value="0.01"/>
-            <param name="llsamplestep" value="0.01"/>
-            <param name="lasamplerange" value="0.005"/>
-            <param name="lasamplestep" value="0.005"/>
-        </node>
-    -->
     </group>
+
+    <!-- Run Cartesio -->
+    <include if="$(arg cartesio)" file="$(find centauro_cartesio)/launch/centauro_car_model_dagana.launch"/>
 
 </launch>
 
