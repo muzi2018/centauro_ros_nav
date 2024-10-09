@@ -32,7 +32,7 @@ void acquire_cloud(const geometry_msgs::Twist::ConstPtr& msg)
 
 int main(int argc, char** argv)
 {    
-    ros::init(argc, argv, "cloud_converter");
+    ros::init(argc, argv, "cmd_add_stamp");
     ros::NodeHandle nh;
     
     ros::Subscriber subscriber = nh.subscribe("/centauro_plan/cmd_vel", 1, acquire_cloud);
