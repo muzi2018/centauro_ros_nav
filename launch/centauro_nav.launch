@@ -33,7 +33,7 @@
 
     <!-- Connect fixed_frame with map frame -->
     <node pkg="tf" name="static_transform_publisher" type="static_transform_publisher"
-        args="0 0 0 0 0 0 fixed_frame map 1"/>
+        args="0 0 0 0 0 0 odom map 1"/>
 
     <!-- Load Empty Map -->
     <node if="$(arg empty_map)" pkg="map_server" name="empty_map" type="map_server" args="$(find centauro_ros_nav)/maps/empty.yaml">
@@ -45,7 +45,7 @@
     <group unless="$(arg empty_map)">
         <node pkg="octomap_server" type="octomap_server_node" name="octomap_server_velodyne">
             <param name="resolution" value="0.03" /> 
-            <param name="frame_id" type="string" value="fixed_frame" />
+            <param name="frame_id" type="string" value="odom" />
             <param name="sensor_model/max_range" value="20.0" />
             <remap from="cloud_in" to="/velodyne_points" />
             
