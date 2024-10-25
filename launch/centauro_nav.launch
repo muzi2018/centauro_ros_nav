@@ -4,7 +4,6 @@
     <arg name="empty_map" default="false"/>
 
     <arg name="use_sim_time" default="true"/>
-    <arg name="cartesio" default="true"/>
     
 
     <!-- MoveBase for starting Nav Stack with config file -->
@@ -13,7 +12,7 @@
         <remap from="map" to="projected_map"/>
 
         <!-- Remap for later Node -->
-        <remap from="/cmd_vel" to="/centauro_plan/cmd_vel"/>
+        <remap from="/cmd_vel" to="/omnisteering/cmd_vel"/>
         
         <rosparam file="$(find centauro_ros_nav)/config/centauro/move_base_params.yaml" command="load"/>
         <rosparam file="$(find centauro_ros_nav)/config/centauro/costmap_common_params.yaml" command="load" ns="global_costmap" />
@@ -31,10 +30,6 @@
     <!-- Add time stamp to cmd vel Twist to TwistStamped -->
     <node pkg="centauro_ros_nav" name="cmd_add_stamp" type="cmd_add_stamp"/>
 
-    <!-- Connect odom with map frame -->
-    <node pkg="tf" name="static_transform_publisher" type="static_transform_publisher"
-        args="0 0 0 0 0 0 odom map 1"/>
-
     <!-- Load Empty Map -->
     <node if="$(arg empty_map)" pkg="map_server" name="empty_map" type="map_server" args="$(find centauro_ros_nav)/maps/empty.yaml">
         <remap from="map" to="projected_map"/>
@@ -47,7 +42,7 @@
             <param name="resolution" value="0.03" /> 
             <param name="frame_id" type="string" value="odom" />
             <param name="sensor_model/max_range" value="20.0" />
-            <remap from="cloud_in" to="/velodyne_points" />
+            <remap from="cloud_in" to="/velodyne_points_filtered" />
             
             <remap from="octomap_point_cloud_centers" to="octomap_velodyne" />
             
@@ -64,8 +59,5 @@
         </node>
     </group>
 
-    <!-- Run Cartesio -->
-    <include if="$(arg cartesio)" file="$(find centauro_cartesio)/launch/centauro_car_model_dagana.launch"/>
-         
 </launch>
 
