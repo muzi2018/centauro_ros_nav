@@ -31,7 +31,7 @@
     <!-- Add time stamp to cmd vel Twist to TwistStamped -->
     <node pkg="centauro_ros_nav" name="cmd_add_stamp" type="cmd_add_stamp"/>
 
-    <!-- Connect fixed_frame with map frame -->
+    <!-- Connect odom with map frame -->
     <node pkg="tf" name="static_transform_publisher" type="static_transform_publisher"
         args="0 0 0 0 0 0 odom map 1"/>
 

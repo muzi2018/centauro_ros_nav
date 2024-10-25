@@ -36,9 +36,4 @@
   <depend>costmap_2d</depend>
   <depend>nav_core</depend>
 
-  <export>
-      <nav_core plugin="${prefix}/backward_plugin.xml" />
-      <nav_core plugin="${prefix}/forward_plugin.xml" />
-  </export>
-    
 </package>
