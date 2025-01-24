@@ -10,7 +10,7 @@ global_costmap:
   origin_y: -10.0
 
   #footprint: [[0.4, 0.29], [0.4, -0.29], [-0.4, -0.29], [-0.4 ,0.29]]
-  footprint_padding: 0.25
+  footprint_padding: 0.15
 
   plugins:
     - {name: static_layer,       type: "costmap_2d::StaticLayer"}

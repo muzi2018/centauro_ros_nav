@@ -14,7 +14,6 @@
 
         <!-- Remap for later Node -->
         <remap from="/cmd_vel" to="/omnisteering/cmd_vel"/>
-        <!-- <remap from="/cmd_vel" to="/centauro_plan/cmd_vel"/> -->
         
         <rosparam file="$(find centauro_ros_nav)/config/centauro/move_base_params.yaml" command="load"/>
         <rosparam file="$(find centauro_ros_nav)/config/centauro/costmap_common_params.yaml" command="load" ns="global_costmap" />
@@ -32,8 +31,8 @@
 
     </node>
 
-    <!-- Add time stamp to cmd vel Twist to TwistStamped -->
-    <node pkg="centauro_ros_nav" name="cmd_add_stamp" type="cmd_add_stamp"/>
+    <node pkg="tf2_ros" type="static_transform_publisher" name="map_tf_odom"
+            args="0 0 0 0 0 0 1 map odom" />
 
     <!-- Load Empty Map -->
     <node if="$(arg empty_map)" pkg="map_server" name="empty_map" type="map_server" args="$(find centauro_ros_nav)/maps/empty.yaml">
@@ -45,7 +44,7 @@
     <!-- Use Octomap in case of not empty map -->
     <group unless="$(arg empty_map)">
         <node pkg="octomap_server" type="octomap_server_node" name="octomap_server_velodyne">
-            <param name="resolution" value="0.05" />  <!-- 0.05 -->
+            <param name="resolution" value="0.25" />  <!-- 0.05 -->
             <param name="frame_id" type="string" value="odom" />
             <param name="sensor_model/max_range" value="20.0" />
             <remap from="cloud_in" to="/velodyne_points_filtered" />
