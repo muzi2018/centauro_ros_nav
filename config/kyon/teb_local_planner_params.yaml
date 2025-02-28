@@ -1,4 +1,3 @@
-
 TebLocalPlannerROS:
 
   #Robot Params
@@ -8,8 +7,8 @@ TebLocalPlannerROS:
   max_vel_x: 0.75
   max_vel_x_backwards: 0.30
 
-  max_vel_y: 0.75
-  acc_lim_y: 3.0
+  max_vel_y: 0.45
+  acc_lim_y: 2.5
 
   max_vel_theta: 0.50
 
@@ -109,5 +108,5 @@ TebLocalPlannerROS:
   switching_blocking_period: 0.0
 
   #Miscellaneous Params
-  odom_topic: "odom"
-  map_frame: "odom"
+  odom_topic: "world"
+  map_frame: "world"
