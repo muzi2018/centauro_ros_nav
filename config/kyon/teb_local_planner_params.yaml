@@ -17,13 +17,13 @@ TebLocalPlannerROS:
   wheelbase: 0.64
 
   footprint_model/type: "polygon"
-  footprint_model/vertices: [[0.45, 0.35], [0.45, -0.35], [-0.45, -0.35], [-0.45 ,0.35]]
+  footprint_model/vertices: [[0.42,0.24],[0.42,-0.24],[-0.55,-0.24],[-0.55,0.24]]
 
   is_footprint_dynamic: false
 
 
   #Goal Tolerance Params
-  xy_goal_tolerance: 0.20 #0.02
+  xy_goal_tolerance: 0.15 #0.02
   yaw_goal_tolerance: 0.35 #0.018
 
   #Trajectory Configuration Params
