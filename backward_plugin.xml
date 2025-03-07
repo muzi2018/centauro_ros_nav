@@ -1,7 +1,0 @@
-<library path="lib/libbackward_recovery">
-  <class name="centauro_ros_nav/BackwardRecovery" type="backward_recovery::BackwardRecovery" base_class_type="nav_core::RecoveryBehavior">
-    <description>
-      A recovery behavior to move the robot backward.
-    </description>
-  </class>
-</library>
