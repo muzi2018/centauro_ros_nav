@@ -65,3 +65,14 @@ target_link_libraries(cmd_add_stamp ${catkin_LIBRARIES})
 install(DIRECTORY config/
     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
     )
+
+install(DIRECTORY launch/
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+    FILES_MATCHING PATTERN "*.launch"
+    )
+
+
+  install(DIRECTORY maps/
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/maps
+    FILES_MATCHING PATTERN "*"
+    )
