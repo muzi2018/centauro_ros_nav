@@ -1,5 +1,6 @@
 <?xml version="1.0" ?>
 <launch>
+    <arg name="gazebo" default="true"/>
 
     <arg name="empty_map" default="false"/>
     <arg name="octomap1_input_src" default="/velodyne_points"/>
@@ -8,6 +9,12 @@
     <arg name="use_sim_time" default="true"/>
     <arg name="use_teb" default="false"/>
     
+    <!-- parameter load  -->
+    <param name="robot_description" textfile="$(find centauro_urdf)/urdf/centauro.urdf"/>
+    <param name="robot_description_semantic" textfile="$(find centauro_srdf)/srdf/centauro.srdf"/>
+    <group if = "$(arg gazebo)">
+        <include file="$(find centauro_gazebo)/launch/centauro_perception.launch" pass_all_args="true"/>
+    </group>
 
     <!-- MoveBase for starting Nav Stack with config file -->
     <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
