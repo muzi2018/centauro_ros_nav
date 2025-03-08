@@ -2,7 +2,7 @@
 <launch>
     <arg name="gazebo" default="true"/>
 
-    <arg name="empty_map" default="true"/>
+    <arg name="empty_map" default="false"/>
 
     <arg name="use_sim_time" default="true"/>
     <arg name="use_teb" default="false"/>
@@ -51,7 +51,7 @@
     <group unless="$(arg empty_map)">
         <node pkg="octomap_server" type="octomap_server_node" name="octomap_server_velodyne">
             <param name="resolution" value="0.25" />  <!-- 0.05 -->
-            <param name="frame_id" type="string" value="odom" />
+            <param name="frame_id" type="string" value="map" />
             <param name="sensor_model/max_range" value="20.0" />
             <remap from="cloud_in" to="/velodyne_points" />
             
