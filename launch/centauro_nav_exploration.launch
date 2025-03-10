@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <launch>
-    <arg name="gazebo" default="true"/>
+    <arg name="gazebo" default="false"/>
 
     <arg name="empty_map" default="false"/>
     <arg name="octomap1_input_src" default="/velodyne_points"/>
