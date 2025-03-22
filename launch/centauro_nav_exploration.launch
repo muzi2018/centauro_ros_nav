@@ -4,7 +4,7 @@
 
     <arg name="empty_map" default="false"/>
     <arg name="octomap1_input_src" default="/velodyne_points"/>
-    <arg name="octomap2_input_src" default="/D435i/D435i_camera/depth/color/points"/>
+    <arg name="octomap2_input_src" default="/D435_head_camera/depth/color/points"/>
 
     <arg name="use_sim_time" default="true"/>
     <arg name="use_teb" default="false"/>
@@ -53,7 +53,7 @@
     <!-- Use Octomap in case of not empty map -->
     <group unless="$(arg empty_map)">
         <node pkg="octomap_server" type="octomap_server_node" name="octomap_server_velodyne">
-            <param name="resolution" value="0.25" />  <!-- 0.05 -->
+            <param name="resolution" value="0.05" />  <!-- 0.05 -->
             <param name="frame_id" type="string" value="map" />
             <param name="sensor_model/max_range" value="20.0" />
             <remap from="cloud_in" to="$(arg octomap1_input_src)" />
@@ -64,7 +64,7 @@
                         
             <!-- <param name="base_frame_id" value="head_down" /> -->
             <param name="base_frame_id" value="pelvis" />
-            <param name="pointcloud_min_z" value="-0.5" />
+            <param name="pointcloud_min_z" value="-1.1" />
             <param name="pointcloud_max_z" value="2.5" />
             <param name="sensor_model/hit" value="0.55" />  <!--default 0.7-->
             <param name="sensor_model/miss" value="0.45" />  <!--default 0.4-->
@@ -83,7 +83,7 @@
                             
                 <!-- <param name="base_frame_id" value="head_down" /> -->
                 <param name="base_frame_id" value="pelvis" />
-                <param name="pointcloud_min_z" value="-2.5" />
+                <param name="pointcloud_min_z" value="-1.1" />
                 <param name="pointcloud_max_z" value="1.5" />
                 <param name="sensor_model/hit" value="0.70" />  <!--default 0.7-->
                 <param name="sensor_model/miss" value="0.40" />  <!--default 0.4-->
@@ -93,10 +93,10 @@
         </group>
     </group>
 
-    <node pkg="centauro_ros_nav" name="valid_navtarget_selector" type="ValidTargetSelectorNode">
+    <!-- <node pkg="centauro_ros_nav" name="valid_navtarget_selector" type="ValidTargetSelectorNode">
         <param name="map_topic_name" value="/projected_map" />
         <param name="footprint_param_name" value="/move_base/global_costmap/footprint"/>
-    </node>
+    </node> -->
 
 </launch>
 

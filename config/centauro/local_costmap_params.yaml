@@ -25,8 +25,8 @@ local_costmap:
     observation_sources: velodyne d435i #zed_mini d435i
     
     #min_obstacle_height seems to be wrt odom frame(?)
-    velodyne: {sensor_frame: pelvis, data_type: PointCloud2, topic: /velodyne_points, marking: true, clearing: true, min_obstacle_height: 1.0}
-    d435i: {sensor_frame: pelvis, data_type: PointCloud2, topic: /D435i/D435i_camera/depth/color/points_filtered, marking: true, clearing: true, min_obstacle_height: -0.75}
+    velodyne: {sensor_frame: pelvis, data_type: PointCloud2, topic: /velodyne_points, marking: true, clearing: true, min_obstacle_height: 0.0}
+    d435i: {sensor_frame: pelvis, data_type: PointCloud2, topic: /D435_head_camera/depth/color/points, marking: true, clearing: true, min_obstacle_height: -0.0}
     #zed_mini: {sensor_frame: pelvis, data_type: PointCloud2, topic: /zedx_left/zed_node/point_cloud/cloud_registered_filtered, marking: true, clearing: true, min_obstacle_height: 0.20}
 
   inflater_layer:

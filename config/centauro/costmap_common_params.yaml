@@ -15,5 +15,5 @@ transform_tolerance: 1.0
 
 
 # observation_sources: velodyne d435i
-# velodyne: {sensor_frame: pelvis, data_type: PointCloud2, topic: /velodyne_points, marking: true, clearing: true}
+velodyne: {sensor_frame: pelvis, data_type: PointCloud2, topic: /velodyne_points, marking: true, clearing: true}
 #d435i: {sensor_frame: pelvis, data_type: PointCloud2, topic: /D435i_camera/depth/color/points, marking: true, clearing: true}
