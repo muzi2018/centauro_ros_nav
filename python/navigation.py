@@ -112,7 +112,7 @@ def send_waypoints():
                 print(f"Chair 1 transformed_pos -> {transformed_pos}")
 
             # Define a list of waypoints (x, y, theta)
-            waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1]-1.3, 1.54)]
+            waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1]-1.3, 0)]
 
             # while it found the another chair
 
@@ -145,7 +145,7 @@ def send_waypoints():
                 if state == 3:  # State 3 means the goal was succeeded
                     if obj_dict["chair_1"]["detected"]:
                         Chairs_dict["chair_1"]["record"] = False
-                    print("object clear ...")
+                        print("reset chair_1 ...")
                     rospy.loginfo("Successfully reached goal: {}".format(waypoint))
                 else:
                     rospy.logwarn("Failed to reach goal: {} with state: {}".format(waypoint, state))
