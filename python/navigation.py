@@ -23,8 +23,7 @@ from geometry_msgs.msg import PointStamped
 # Chair 2: (0.75, 1.12, 8.4) -> (8.509858507416597, 0.21297738285356893, -0.7844677892095936)
 # Chair 3: (-1.33, 0.83, 3.61) -> (3.512881381696345, 1.7570635315974463, -0.8032891220488297)
 
-Chairs_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "detected": False},
-               "chair_2": {"position":(0.0, 0.0, 0.0), "detected": False}}
+Chairs_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "record": False}}
 
 update_flag = True
 
@@ -105,13 +104,12 @@ def send_waypoints():
     # roll3, pitch3, yaw3 = tf.euler_from_quaternion(quaternion3)
     while not rospy.is_shutdown():
         
-        if "chair1" in obj_dict:
-            transformed_pos = transformer.transform_point(*obj_dict["chair1"])
-            if not Chairs_dict["chair_1"]["detected"]:
+        if "chair_1" in obj_dict:
+            transformed_pos = transformer.transform_point(*obj_dict["chair_1"]["position"])
+            if not Chairs_dict["chair_1"]["record"]:
                 Chairs_dict["chair_1"]["position"] = transformed_pos
-                Chairs_dict["chair_1"]["detected"] = True
+                Chairs_dict["chair_1"]["record"] = True
                 print(f"Chair 1 transformed_pos -> {transformed_pos}")
-
 
             # Define a list of waypoints (x, y, theta)
             waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1]-1.3, 1.54)]
@@ -145,8 +143,8 @@ def send_waypoints():
                 # Check if the goal was achieved successfully
                 state = client.get_state()
                 if state == 3:  # State 3 means the goal was succeeded
-                    obj_dict.clear()
-                    # update_flag = True
+                    if obj_dict["chair_1"]["detected"]:
+                        Chairs_dict["chair_1"]["record"] = False
                     print("object clear ...")
                     rospy.loginfo("Successfully reached goal: {}".format(waypoint))
                 else:
