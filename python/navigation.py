@@ -80,8 +80,9 @@ def callback(msg):
         rospy.logerr("Failed to decode JSON message!")
 
 transformed_pos = []
-
+cnt = 0
 def send_waypoints():
+    global cnt
     # Initialize the ROS node
     rospy.init_node('send_waypoints', anonymous=True)
     global transformed_pos
@@ -109,17 +110,21 @@ def send_waypoints():
             if not Chairs_dict["chair_1"]["record"]:
                 Chairs_dict["chair_1"]["position"] = transformed_pos
                 Chairs_dict["chair_1"]["record"] = True
+                pos_o = obj_dict["chair_1"]["position"]
+                print(f"Original Chair 1 pos -> {pos_o}")
                 print(f"Chair 1 transformed_pos -> {transformed_pos}")
 
             # Define a list of waypoints (x, y, theta)
-            waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1]-1.3, 0)]
-
+            if cnt == 0:
+                waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1]-1.3, 0.45)]
+            elif cnt == 1:
+                waypoints = [(Chairs_dict["chair_1"]["position"][0] + 0.5, Chairs_dict["chair_1"]["position"][1], 1.45)]
             # while it found the another chair
 
             # Iterate over the waypoints and send them to move_base one by one
             for waypoint in waypoints:
                 x, y, theta = waypoint
-
+                
                 # Create a MoveBaseGoal message to specify the target pose
                 goal = MoveBaseGoal()
                 goal.target_pose.header = Header()
@@ -145,6 +150,7 @@ def send_waypoints():
                 if state == 3:  # State 3 means the goal was succeeded
                     if obj_dict["chair_1"]["detected"]:
                         Chairs_dict["chair_1"]["record"] = False
+                        cnt += 1
                         print("reset chair_1 ...")
                     rospy.loginfo("Successfully reached goal: {}".format(waypoint))
                 else:
