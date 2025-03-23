@@ -118,7 +118,7 @@ def send_waypoints():
             if cnt == 0:
                 waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1]-1.3, 0.45)]
             elif cnt == 1:
-                waypoints = [(Chairs_dict["chair_1"]["position"][0] + 0.5, Chairs_dict["chair_1"]["position"][1], 1.45)]
+                waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1] - 1.3, 1.45)]
             # while it found the another chair
 
             # Iterate over the waypoints and send them to move_base one by one
