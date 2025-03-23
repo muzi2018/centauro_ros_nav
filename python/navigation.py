@@ -23,7 +23,8 @@ from geometry_msgs.msg import PointStamped
 # Chair 2: (0.75, 1.12, 8.4) -> (8.509858507416597, 0.21297738285356893, -0.7844677892095936)
 # Chair 3: (-1.33, 0.83, 3.61) -> (3.512881381696345, 1.7570635315974463, -0.8032891220488297)
 
-Chairs_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "detected": False}}
+Chairs_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "detected": False},
+               "chair_2": {"position":(0.0, 0.0, 0.0), "detected": False}}
 
 update_flag = True
 
@@ -106,51 +107,52 @@ def send_waypoints():
         
         if "chair1" in obj_dict:
             transformed_pos = transformer.transform_point(*obj_dict["chair1"])
-            # # rospy.loginfo(f"Chair1 Position: x={transformed_pos[0]}, y={transformed_pos[1]}, z={transformed_pos[2]}")
             if not Chairs_dict["chair_1"]["detected"]:
                 Chairs_dict["chair_1"]["position"] = transformed_pos
                 Chairs_dict["chair_1"]["detected"] = True
                 print(f"Chair 1 transformed_pos -> {transformed_pos}")
-            # # Define a list of waypoints (x, y, theta)
-            # waypoints = [
-            #     (transformed_pos[0], transformed_pos[1]-1.3, 0)   
-            # ]
 
-            # # Iterate over the waypoints and send them to move_base one by one
-            # for waypoint in waypoints:
-            #     x, y, theta = waypoint
 
-            #     # Create a MoveBaseGoal message to specify the target pose
-            #     goal = MoveBaseGoal()
-            #     goal.target_pose.header = Header()
-            #     goal.target_pose.header.stamp = rospy.Time.now()
-            #     goal.target_pose.header.frame_id = "map"  # Set the frame_id for the pose
+            # Define a list of waypoints (x, y, theta)
+            waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1]-1.3, 1.54)]
 
-            #     # Set the position and orientation
-            #     goal.target_pose.pose.position.x = x
-            #     goal.target_pose.pose.position.y = y
-            #     goal.target_pose.pose.position.z = 0.0
-            #     goal.target_pose.pose.orientation.z = theta
-            #     goal.target_pose.pose.orientation.w = 1.0  # Ensure orientation is normalized
+            # while it found the another chair
 
-            #     # Send the goal to the move_base action server
-            #     rospy.loginfo("Sending goal: {}".format(waypoint))
-            #     client.send_goal(goal)
+            # Iterate over the waypoints and send them to move_base one by one
+            for waypoint in waypoints:
+                x, y, theta = waypoint
 
-            #     # Wait for the result (blocking)
-            #     client.wait_for_result()
+                # Create a MoveBaseGoal message to specify the target pose
+                goal = MoveBaseGoal()
+                goal.target_pose.header = Header()
+                goal.target_pose.header.stamp = rospy.Time.now()
+                goal.target_pose.header.frame_id = "map"  # Set the frame_id for the pose
 
-            #     # Check if the goal was achieved successfully
-            #     state = client.get_state()
-            #     if state == 3:  # State 3 means the goal was succeeded
-            #         obj_dict.clear()
-            #         # update_flag = True
-            #         print("object clear ...")
-            #         rospy.loginfo("Successfully reached goal: {}".format(waypoint))
-            #     else:
-            #         rospy.logwarn("Failed to reach goal: {} with state: {}".format(waypoint, state))
+                # Set the position and orientation
+                goal.target_pose.pose.position.x = x
+                goal.target_pose.pose.position.y = y
+                goal.target_pose.pose.position.z = 0.0
+                goal.target_pose.pose.orientation.z = theta
+                goal.target_pose.pose.orientation.w = 1.0  # Ensure orientation is normalized
 
-            #     # Wait a little before sending the next goal (optional)
+                # Send the goal to the move_base action server
+                rospy.loginfo("Sending goal: {}".format(waypoint))
+                client.send_goal(goal)
+
+                # Wait for the result (blocking)
+                client.wait_for_result()
+
+                # Check if the goal was achieved successfully
+                state = client.get_state()
+                if state == 3:  # State 3 means the goal was succeeded
+                    obj_dict.clear()
+                    # update_flag = True
+                    print("object clear ...")
+                    rospy.loginfo("Successfully reached goal: {}".format(waypoint))
+                else:
+                    rospy.logwarn("Failed to reach goal: {} with state: {}".format(waypoint, state))
+
+                # Wait a little before sending the next goal (optional)
         rospy.sleep(1)
         
 rospy.Subscriber('object_positions', String, callback)
