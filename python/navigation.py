@@ -116,12 +116,14 @@ def send_waypoints():
     while not rospy.is_shutdown():    
         if "chair_1" in obj_dict:
             transformed_pos = transformer.transform_point(*obj_dict["chair_1"]["position"])
+            x, y, z = transformed_pos
+            yaw = 0
+            chair_tf_broadcaster.publish_chair_tf("chair", x, y, z, yaw)
             if not Chairs_dict["chair_1"]["record"] and cnt == 0:
                 Chairs_dict["chair_1"]["position"] = transformed_pos
                 Chairs_dict["chair_1"]["record"] = True
                 pos_o = obj_dict["chair_1"]["position"]
                 waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1] - 1.3, 0.45)]
-
                 print(f"Original Chair 1 pos -> {pos_o}")
                 print(f"Chair 1 transformed_pos -> {transformed_pos}") # Chair 1 transformed_pos -> (3.492636803450569, -0.6283296429808908, -0.9809153977970663)
 
@@ -132,11 +134,20 @@ def send_waypoints():
                 print("chair_2 original: ", pos_o)
                 waypoints = [(Chairs_dict["chair_2"]["position"][0], Chairs_dict["chair_2"]["position"][1] - 1.3, 1.45)]
                 
+                # x, y, z = transformed_pos
+                # yaw = 0
+                # chair_tf_broadcaster.publish_chair_tf("chair_2", x, y, z, yaw)
+                
             elif Chairs_dict["chair_1"]["record"] and Chairs_dict["chair_2"]["record"] and not Chairs_dict["chair_3"]["record"] and cnt == 2:
                 Chairs_dict["chair_3"]["position"] = transformed_pos
                 Chairs_dict["chair_3"]["record"] = True
                 pos_o = obj_dict["chair_1"]["position"]
                 waypoints = [(Chairs_dict["chair_3"]["position"][0], Chairs_dict["chair_3"]["position"][1] + 1.3, -1.45)]
+                
+                # x, y, z = transformed_pos
+                # yaw = 0
+                # chair_tf_broadcaster.publish_chair_tf("chair_3", x, y, z, yaw)
+                
             for waypoint in waypoints:
                 x, y, theta = waypoint
                 goal = MoveBaseGoal()
