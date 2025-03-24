@@ -169,6 +169,8 @@ def send_waypoints():
                 if state == 3:  
                     if obj_dict["chair_1"]["detected"]:
                         # Chairs_dict["chair_1"]["record"] = False
+                        print("cnt = ", cnt)
+                        
                         cnt += 1
                         print("reset chair_1 ...")
                     rospy.loginfo("Successfully reached goal: {}".format(waypoint))
