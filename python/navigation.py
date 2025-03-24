@@ -24,7 +24,6 @@ from geometry_msgs.msg import PointStamped
 # Chair 3: (-1.33, 0.83, 3.61) -> (3.512881381696345, 1.7570635315974463, -0.8032891220488297)
 
 Chairs_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "record": False}}
-
 update_flag = True
 
 class TransformChairPosition:
@@ -34,27 +33,22 @@ class TransformChairPosition:
 
     def transform_point(self, x, y, z):
         try:
-            # Wait for the transform to be available
             self.tf_buffer.can_transform('map', '435_head_camera_color_optical_frame', rospy.Time(0), rospy.Duration(1.0))
             transform_stamped = self.tf_buffer.lookup_transform(
-                'map',  # Target frame
-                'D435_head_camera_color_optical_frame',  # Source frame
-                rospy.Time(0),  # Get the latest transform
-                rospy.Duration(1.0)  # Timeout duration
+                'map',                                                  # Target frame
+                'D435_head_camera_color_optical_frame',                 # Source frame
+                rospy.Time(0),                                          # Get the latest transform
+                rospy.Duration(1.0)                                     # Timeout duration
             )
 
-            # Create a PointStamped message
             point = PointStamped()
             point.header.frame_id = "435_head_camera_color_optical_frame"
             point.header.stamp = rospy.Time.now()
             point.point.x = x
             point.point.y = y
             point.point.z = z
-
-            # Transform the point
             transformed_point = tf2_geometry_msgs.do_transform_point(point, transform_stamped)
             
-            # rospy.loginfo(f"Transformed Position: ({transformed_point.point.x}, {transformed_point.point.y}, {transformed_point.point.z})")
             return transformed_point.point.x, transformed_point.point.y, transformed_point.point.z
         
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
@@ -62,20 +56,15 @@ class TransformChairPosition:
         return None
 
 obj_dict = {}
-
 def callback(msg):
     global obj_dict
     global update_flag
     try:
-        obj_dict = json.loads(msg.data)  # Convert JSON string back to dictionary
-        # rospy.loginfo(f"Received Object Data: {obj_dict}")
-
-        # Access specific objects
+        obj_dict = json.loads(msg.data)                                 # Convert JSON string back to dictionary
         if "chair1" in obj_dict and update_flag:
             x, y, z = obj_dict["chair1"]
             update_flag = False
             rospy.loginfo(f"chair1 Position: x={x}, y={y}, z={z}")
-
     except json.JSONDecodeError:
         rospy.logerr("Failed to decode JSON message!")
 
@@ -83,28 +72,15 @@ transformed_pos = []
 cnt = 0
 def send_waypoints():
     global cnt
-    # Initialize the ROS node
     rospy.init_node('send_waypoints', anonymous=True)
     global transformed_pos
     transformer = TransformChairPosition()
-
-
-    # Create an action client for the move_base action server
     client = SimpleActionClient('/move_base', MoveBaseAction)
 
-    # Wait for the move_base action server to start
     rospy.loginfo("Waiting for move_base action server to start...")
     client.wait_for_server()
     rospy.loginfo("Connected to move_base server")
-    # quaternion1 = [0, 0, 0, 1]
-    # quaternion2 = [0, 0, 0.5, 0.8]
-    # quaternion3 = [0, 0, 0.8, 0.6]
-    
-    # roll1, pitch1, yaw1 = tf.euler_from_quaternion(quaternion1)
-    # roll2, pitch2, yaw2 = tf.euler_from_quaternion(quaternion2)
-    # roll3, pitch3, yaw3 = tf.euler_from_quaternion(quaternion3)
-    while not rospy.is_shutdown():
-        
+    while not rospy.is_shutdown():    
         if "chair_1" in obj_dict:
             transformed_pos = transformer.transform_point(*obj_dict["chair_1"]["position"])
             if not Chairs_dict["chair_1"]["record"]:
@@ -114,40 +90,31 @@ def send_waypoints():
                 print(f"Original Chair 1 pos -> {pos_o}")
                 print(f"Chair 1 transformed_pos -> {transformed_pos}")
 
-            # Define a list of waypoints (x, y, theta)
             if cnt == 0:
                 waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1]-1.3, 0.45)]
             elif cnt == 1:
                 waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1] - 1.3, 1.45)]
-            # while it found the another chair
-
-            # Iterate over the waypoints and send them to move_base one by one
+            elif cnt == 2:
+                waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1] + 1.3, -1.45)]
             for waypoint in waypoints:
                 x, y, theta = waypoint
-                
-                # Create a MoveBaseGoal message to specify the target pose
                 goal = MoveBaseGoal()
                 goal.target_pose.header = Header()
                 goal.target_pose.header.stamp = rospy.Time.now()
-                goal.target_pose.header.frame_id = "map"  # Set the frame_id for the pose
-
-                # Set the position and orientation
+                goal.target_pose.header.frame_id = "map"                
+                
                 goal.target_pose.pose.position.x = x
                 goal.target_pose.pose.position.y = y
                 goal.target_pose.pose.position.z = 0.0
                 goal.target_pose.pose.orientation.z = theta
-                goal.target_pose.pose.orientation.w = 1.0  # Ensure orientation is normalized
+                goal.target_pose.pose.orientation.w = 1.0  
 
-                # Send the goal to the move_base action server
                 rospy.loginfo("Sending goal: {}".format(waypoint))
                 client.send_goal(goal)
-
-                # Wait for the result (blocking)
                 client.wait_for_result()
 
-                # Check if the goal was achieved successfully
                 state = client.get_state()
-                if state == 3:  # State 3 means the goal was succeeded
+                if state == 3:  
                     if obj_dict["chair_1"]["detected"]:
                         Chairs_dict["chair_1"]["record"] = False
                         cnt += 1
@@ -156,7 +123,6 @@ def send_waypoints():
                 else:
                     rospy.logwarn("Failed to reach goal: {} with state: {}".format(waypoint, state))
 
-                # Wait a little before sending the next goal (optional)
         rospy.sleep(1)
         
 rospy.Subscriber('object_positions', String, callback)
