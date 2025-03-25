@@ -11,7 +11,6 @@ from std_msgs.msg import String
 import tf2_ros
 import tf2_geometry_msgs
 from geometry_msgs.msg import PointStamped
-import geometry_msgs.msg
 
 # map info
 # resolution: 0.05
@@ -24,39 +23,7 @@ import geometry_msgs.msg
 # Chair 2: (0.75, 1.12, 8.4) -> (8.509858507416597, 0.21297738285356893, -0.7844677892095936)
 # Chair 3: (-1.33, 0.83, 3.61) -> (3.512881381696345, 1.7570635315974463, -0.8032891220488297)
 
-'''
-tf2_ros.StaticTransformBroadcaster
-'''
-
-class ChairTFBroadcaster:
-    def __init__(self):
-        self.br = tf2_ros.TransformBroadcaster()
-    
-    def publish_chair_tf(self, chair_name, x, y, z, yaw):
-        t = geometry_msgs.msg.TransformStamped()
-        t.header.stamp = rospy.Time.now()
-        t.header.frame_id = "map"  # The chair should be aligned with the map
-        t.child_frame_id = chair_name  # e.g., "chair_1"
-        
-        t.transform.translation.x = x
-        t.transform.translation.y = y
-        t.transform.translation.z = z
-
-        quat = tf.quaternion_from_euler(0, 0, yaw)
-        t.transform.rotation.x = quat[0]
-        t.transform.rotation.y = quat[1]
-        t.transform.rotation.z = quat[2]
-        t.transform.rotation.w = quat[3]
-
-        self.br.sendTransform(t)
-
-        
-        
-chair_tf_broadcaster = ChairTFBroadcaster()
-Chairs_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "record": False},
-               "chair_2": {"position":(0.0, 0.0, 0.0), "record": False},
-               "chair_3": {"position":(0.0, 0.0, 0.0), "record": False}
-               }
+Chairs_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "record": False}}
 update_flag = True
 
 class TransformChairPosition:
@@ -116,38 +83,19 @@ def send_waypoints():
     while not rospy.is_shutdown():    
         if "chair_1" in obj_dict:
             transformed_pos = transformer.transform_point(*obj_dict["chair_1"]["position"])
-            x, y, z = transformed_pos
-            yaw = 0
-            chair_tf_broadcaster.publish_chair_tf("chair", x, y, z, yaw)
-            if not Chairs_dict["chair_1"]["record"] and cnt == 0:
+            if not Chairs_dict["chair_1"]["record"]:
                 Chairs_dict["chair_1"]["position"] = transformed_pos
                 Chairs_dict["chair_1"]["record"] = True
                 pos_o = obj_dict["chair_1"]["position"]
-                waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1] - 1.3, 0.45)]
                 print(f"Original Chair 1 pos -> {pos_o}")
-                print(f"Chair 1 transformed_pos -> {transformed_pos}") # Chair 1 transformed_pos -> (3.492636803450569, -0.6283296429808908, -0.9809153977970663)
+                print(f"Chair 1 transformed_pos -> {transformed_pos}")
 
-            elif Chairs_dict["chair_1"]["record"] and not Chairs_dict["chair_2"]["record"] and cnt == 1:
-                Chairs_dict["chair_2"]["position"] = transformed_pos
-                Chairs_dict["chair_2"]["record"] = True
-                pos_o = obj_dict["chair_1"]["position"]
-                print("chair_2 original: ", pos_o)
-                waypoints = [(Chairs_dict["chair_2"]["position"][0], Chairs_dict["chair_2"]["position"][1] - 1.3, 1.45)]
-                
-                # x, y, z = transformed_pos
-                # yaw = 0
-                # chair_tf_broadcaster.publish_chair_tf("chair_2", x, y, z, yaw)
-                
-            elif Chairs_dict["chair_1"]["record"] and Chairs_dict["chair_2"]["record"] and not Chairs_dict["chair_3"]["record"] and cnt == 2:
-                Chairs_dict["chair_3"]["position"] = transformed_pos
-                Chairs_dict["chair_3"]["record"] = True
-                pos_o = obj_dict["chair_1"]["position"]
-                waypoints = [(Chairs_dict["chair_3"]["position"][0], Chairs_dict["chair_3"]["position"][1] + 1.3, -1.45)]
-                
-                # x, y, z = transformed_pos
-                # yaw = 0
-                # chair_tf_broadcaster.publish_chair_tf("chair_3", x, y, z, yaw)
-                
+            if cnt == 0:
+                waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1] - 1.0, 0.45)]
+            elif cnt == 1:
+                waypoints = [(Chairs_dict["chair_1"]["position"][0] + 0.8, Chairs_dict["chair_1"]["position"][1], 1.45)]
+            elif cnt == 2:
+                waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1] + 1.0, -1.45)]
             for waypoint in waypoints:
                 x, y, theta = waypoint
                 goal = MoveBaseGoal()
@@ -168,21 +116,13 @@ def send_waypoints():
                 state = client.get_state()
                 if state == 3:  
                     if obj_dict["chair_1"]["detected"]:
-                        # Chairs_dict["chair_1"]["record"] = False
-                        print("cnt = ", cnt)
-                        
+                        Chairs_dict["chair_1"]["record"] = False
                         cnt += 1
                         print("reset chair_1 ...")
                     rospy.loginfo("Successfully reached goal: {}".format(waypoint))
                 else:
                     rospy.logwarn("Failed to reach goal: {} with state: {}".format(waypoint, state))
-        
-        # x, y, z = transformed_pos
-        # yaw = 0
-        # chair_tf_broadcaster.publish_chair_tf("chair_1", x_1, y_1, z_1, yaw)
-        # chair_tf_broadcaster.publish_chair_tf("chair_2", x_1, y_1, z_1, yaw)
-        # chair_tf_broadcaster.publish_chair_tf("chair_3", x_1, y_1, z_1, yaw)
-        
+
         rospy.sleep(1)
         
 rospy.Subscriber('object_positions', String, callback)
@@ -192,5 +132,3 @@ if __name__ == "__main__":
         send_waypoints()
     except rospy.ROSInterruptException:
         rospy.logerr("ROS interrupted. Exiting...")
-
-
