@@ -55,16 +55,17 @@ class TransformChairPosition:
             rospy.logerr(f"Transform failed: {e}")
         return None
 
-obj_dict = {}
+obj_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "detected": False}}
 def callback(msg):
     global obj_dict
-    global update_flag
     try:
         obj_dict = json.loads(msg.data)                                 # Convert JSON string back to dictionary
-        if "chair1" in obj_dict and update_flag:
+        # print("obj_dict in callback .. ", obj_dict)
+        if "chair1" in obj_dict :
             x, y, z = obj_dict["chair1"]
-            update_flag = False
             rospy.loginfo(f"chair1 Position: x={x}, y={y}, z={z}")
+        # else:
+        #     obj_dict = {}
     except json.JSONDecodeError:
         rospy.logerr("Failed to decode JSON message!")
 
@@ -72,6 +73,7 @@ transformed_pos = []
 cnt = 0
 def send_waypoints():
     global cnt
+
     rospy.init_node('send_waypoints', anonymous=True)
     global transformed_pos
     transformer = TransformChairPosition()
@@ -81,7 +83,10 @@ def send_waypoints():
     client.wait_for_server()
     rospy.loginfo("Connected to move_base server")
     while not rospy.is_shutdown():    
+
         if "chair_1" in obj_dict:
+            print("obj_dict 111 :", obj_dict)
+
             transformed_pos = transformer.transform_point(*obj_dict["chair_1"]["position"])
             if not Chairs_dict["chair_1"]["record"]:
                 Chairs_dict["chair_1"]["position"] = transformed_pos
@@ -122,7 +127,19 @@ def send_waypoints():
                     rospy.loginfo("Successfully reached goal: {}".format(waypoint))
                 else:
                     rospy.logwarn("Failed to reach goal: {} with state: {}".format(waypoint, state))
-
+        else:
+                goal = MoveBaseGoal()
+                goal.target_pose.header = Header()
+                goal.target_pose.header.stamp = rospy.Time.now()
+                goal.target_pose.header.frame_id = "map"                
+                
+                goal.target_pose.pose.position.x = 0
+                goal.target_pose.pose.position.y = 0
+                goal.target_pose.pose.position.z = 0.0
+                goal.target_pose.pose.orientation.z = 1.45
+                goal.target_pose.pose.orientation.w = 1.0  
+                client.send_goal(goal)
+            
         rospy.sleep(1)
         
 rospy.Subscriber('object_positions', String, callback)
