@@ -6,6 +6,7 @@ Input: Nav Target as PostStamped
 Output: /cmd_vel [Twist]
 
 ### Config Folder
+
 This folder contains the configuration files used by Nav Stack for `centauro` and `kyon`.
 
 More specifically, the main params that may be modified are the following:
@@ -16,6 +17,8 @@ More specifically, the main params that may be modified are the following:
 - teb_local_planner and dwa_local_planner: are the config files related to the planner used at a local scale. Here info like min-max velocities, local footprint, tolerance are described.
 
 ### Run
+
 By running `centuaro_nav.launch` you will have:
+
 - move_base with the Nav Stack framework (planners, costmaps)
-- Octomap with dynamic occupancy grid or a staitc one loaded (specifying the one you want) 
+- Octomap with dynamic occupancy grid or a staitc one loaded (specifying the one you want)

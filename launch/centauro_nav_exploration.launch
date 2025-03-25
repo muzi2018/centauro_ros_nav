@@ -1,13 +1,20 @@
 <?xml version="1.0" ?>
 <launch>
+    <arg name="gazebo" default="false"/>
 
     <arg name="empty_map" default="false"/>
-    <arg name="octomap1_input_src" default="/velodyne_points_filtered"/>
-    <arg name="octomap2_input_src" default="/D435i/D435i_camera/depth/color/points_filtered"/>
+    <arg name="octomap1_input_src" default="/velodyne_points"/>
+    <arg name="octomap2_input_src" default="/D435_head_camera/depth/color/points"/>
 
     <arg name="use_sim_time" default="true"/>
     <arg name="use_teb" default="false"/>
     
+    <!-- parameter load  -->
+    <param name="robot_description" textfile="$(find centauro_urdf)/urdf/centauro.urdf"/>
+    <param name="robot_description_semantic" textfile="$(find centauro_srdf)/srdf/centauro.srdf"/>
+    <group if = "$(arg gazebo)">
+        <include file="$(find centauro_gazebo)/launch/centauro_perception.launch" pass_all_args="true"/>
+    </group>
 
     <!-- MoveBase for starting Nav Stack with config file -->
     <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
@@ -33,8 +40,8 @@
 
     </node>
 
-    <node pkg="tf2_ros" type="static_transform_publisher" name="map_tf_odom"
-            args="0 0 0 0 0 0 1 map odom" />
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="map_tf_odom"
+            args="0 0 0 0 0 0 1 map odom" /> -->
 
     <!-- Load Empty Map -->
     <node if="$(arg empty_map)" pkg="map_server" name="empty_map" type="map_server" args="$(find centauro_ros_nav)/maps/empty.yaml">
@@ -46,8 +53,8 @@
     <!-- Use Octomap in case of not empty map -->
     <group unless="$(arg empty_map)">
         <node pkg="octomap_server" type="octomap_server_node" name="octomap_server_velodyne">
-            <param name="resolution" value="0.25" />  <!-- 0.05 -->
-            <param name="frame_id" type="string" value="odom" />
+            <param name="resolution" value="0.01" />  <!-- 0.05 -->
+            <param name="frame_id" type="string" value="map" />
             <param name="sensor_model/max_range" value="20.0" />
             <remap from="cloud_in" to="$(arg octomap1_input_src)" />
             
@@ -57,7 +64,7 @@
                         
             <!-- <param name="base_frame_id" value="head_down" /> -->
             <param name="base_frame_id" value="pelvis" />
-            <param name="pointcloud_min_z" value="-0.5" />
+            <param name="pointcloud_min_z" value="-1.1" />
             <param name="pointcloud_max_z" value="2.5" />
             <param name="sensor_model/hit" value="0.55" />  <!--default 0.7-->
             <param name="sensor_model/miss" value="0.45" />  <!--default 0.4-->
@@ -67,7 +74,7 @@
         
         <group ns="local">
             <node pkg="octomap_server" type="octomap_server_node" name="octomap_server">
-                <param name="resolution" value="0.10" />  <!-- 0.05 -->
+                <param name="resolution" value="0.01" />  <!-- 0.05 -->
                 <param name="frame_id" type="string" value="map" />
                 <param name="sensor_model/max_range" value="5.0" />
                 <remap from="cloud_in" to="$(arg octomap2_input_src)" />
@@ -76,7 +83,7 @@
                             
                 <!-- <param name="base_frame_id" value="head_down" /> -->
                 <param name="base_frame_id" value="pelvis" />
-                <param name="pointcloud_min_z" value="-2.5" />
+                <param name="pointcloud_min_z" value="-1.1" />
                 <param name="pointcloud_max_z" value="1.5" />
                 <param name="sensor_model/hit" value="0.70" />  <!--default 0.7-->
                 <param name="sensor_model/miss" value="0.40" />  <!--default 0.4-->
@@ -86,10 +93,10 @@
         </group>
     </group>
 
-    <node pkg="centauro_ros_nav" name="valid_navtarget_selector" type="ValidTargetSelectorNode">
+    <!-- <node pkg="centauro_ros_nav" name="valid_navtarget_selector" type="ValidTargetSelectorNode">
         <param name="map_topic_name" value="/projected_map" />
         <param name="footprint_param_name" value="/move_base/global_costmap/footprint"/>
-    </node>
+    </node> -->
 
 </launch>
 

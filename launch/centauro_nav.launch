@@ -1,12 +1,18 @@
 <?xml version="1.0" ?>
 <launch>
+    <arg name="gazebo" default="true"/>
 
     <arg name="empty_map" default="false"/>
 
     <arg name="use_sim_time" default="true"/>
     <arg name="use_teb" default="false"/>
     
-
+    <!-- parameter load  -->
+    <param name="robot_description" textfile="$(find centauro_urdf)/urdf/centauro.urdf"/>
+    <param name="robot_description_semantic" textfile="$(find centauro_srdf)/srdf/centauro.srdf"/>
+    <group if = "$(arg gazebo)">
+        <include file="$(find centauro_gazebo)/launch/centauro_perception.launch" pass_all_args="true"/>
+    </group>
     <!-- MoveBase for starting Nav Stack with config file -->
     <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
 
@@ -31,8 +37,8 @@
 
     </node>
 
-    <node pkg="tf2_ros" type="static_transform_publisher" name="map_tf_odom"
-            args="0 0 0 0 0 0 1 map odom" />
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="map_tf_odom"
+            args="0 0 0 0 0 0 1 map odom" /> -->
 
     <!-- Load Empty Map -->
     <node if="$(arg empty_map)" pkg="map_server" name="empty_map" type="map_server" args="$(find centauro_ros_nav)/maps/empty.yaml">
@@ -45,9 +51,9 @@
     <group unless="$(arg empty_map)">
         <node pkg="octomap_server" type="octomap_server_node" name="octomap_server_velodyne">
             <param name="resolution" value="0.25" />  <!-- 0.05 -->
-            <param name="frame_id" type="string" value="odom" />
+            <param name="frame_id" type="string" value="map" />
             <param name="sensor_model/max_range" value="20.0" />
-            <remap from="cloud_in" to="/velodyne_points_filtered" />
+            <remap from="cloud_in" to="/velodyne_points" />
             
             <remap from="octomap_point_cloud_centers" to="octomap_velodyne" />
             

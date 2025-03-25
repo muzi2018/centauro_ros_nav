@@ -45,7 +45,7 @@ include_directories(
   )
 
 
-add_library(ValidTargetSelectorManager src/ValidTargetSelectorManager.cpp)
+add_library(ValidTargetSelectorManager SHARED src/ValidTargetSelectorManager.cpp)
 add_dependencies(ValidTargetSelectorManager ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(ValidTargetSelectorManager ${catkin_LIBRARIES})
 
@@ -65,3 +65,23 @@ target_link_libraries(cmd_add_stamp ${catkin_LIBRARIES})
 install(DIRECTORY config/
     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
     )
+
+install(DIRECTORY launch/
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+    FILES_MATCHING PATTERN "*.launch"
+    )
+
+
+install(DIRECTORY maps/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/maps
+  FILES_MATCHING PATTERN "*"
+  )
+  
+install(TARGETS ValidTargetSelectorNode
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  )
+
+  install(TARGETS ValidTargetSelectorManager
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  )
+
