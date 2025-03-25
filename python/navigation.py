@@ -11,7 +11,9 @@ from std_msgs.msg import String
 import tf2_ros
 import tf2_geometry_msgs
 from geometry_msgs.msg import PointStamped
-
+import threading
+import geometry_msgs.msg
+import tf2_ros
 # map info
 # resolution: 0.05
 # width: 238
@@ -23,8 +25,38 @@ from geometry_msgs.msg import PointStamped
 # Chair 2: (0.75, 1.12, 8.4) -> (8.509858507416597, 0.21297738285356893, -0.7844677892095936)
 # Chair 3: (-1.33, 0.83, 3.61) -> (3.512881381696345, 1.7570635315974463, -0.8032891220488297)
 
-Chairs_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "record": False}}
+# Chairs_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "record": False}}
+Chairs_dict = {}
 update_flag = True
+
+def publish_chair_positions():
+    """Continuously publishes chair positions as PoseStamped messages to RViz."""
+    rate = rospy.Rate(1)  # Publish at 1 Hz
+    tf_broadcaster = tf2_ros.TransformBroadcaster()
+    while not rospy.is_shutdown():
+        for chair_id, chair_data in Chairs_dict.items():
+            if "position" in chair_data:
+                x, y, z = chair_data["position"]
+            transform = geometry_msgs.msg.TransformStamped()
+            transform.header.stamp = rospy.Time.now()
+            transform.header.frame_id = "map"  # Adjust this based on your setup
+            transform.child_frame_id = chair_id
+
+            transform.transform.translation.x = x
+            transform.transform.translation.y = y
+            transform.transform.translation.z = z
+            
+            transform.transform.rotation.x = 0
+            transform.transform.rotation.y = 0
+            transform.transform.rotation.z = 0
+            transform.transform.rotation.w = 1
+
+            tf_broadcaster.sendTransform(transform)
+            rospy.loginfo(f"Published TF for {transform.child_frame_id}")
+
+
+        rate.sleep()
+
 
 class TransformChairPosition:
     def __init__(self):
@@ -55,7 +87,7 @@ class TransformChairPosition:
             rospy.logerr(f"Transform failed: {e}")
         return None
 
-obj_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "detected": False}}
+obj_dict = {"chair": {"position":(0.0, 0.0, 0.0), "detected": False}}
 def callback(msg):
     global obj_dict
     try:
@@ -75,6 +107,12 @@ def send_waypoints():
     global cnt
 
     rospy.init_node('send_waypoints', anonymous=True)
+    
+    # Start the chair position publisher in a separate thread
+    publisher_thread = threading.Thread(target=publish_chair_positions)
+    publisher_thread.daemon = True  # Stops with the main script
+    publisher_thread.start()
+    
     global transformed_pos
     transformer = TransformChairPosition()
     client = SimpleActionClient('/move_base', MoveBaseAction)
@@ -86,26 +124,28 @@ def send_waypoints():
     rospy.loginfo("Connected to move_base server")
     while not rospy.is_shutdown():    
 
-        if "chair_1" in obj_dict:
-            print("obj_dict 111 :", obj_dict)
+        if "chair" in obj_dict:
+            print("obj_dict :", obj_dict)
 
-            transformed_pos = transformer.transform_point(*obj_dict["chair_1"]["position"])
-            if not Chairs_dict["chair_1"]["record"]:
-                Chairs_dict["chair_1"]["position"] = transformed_pos
-                Chairs_dict["chair_1"]["record"] = True
-                pos_o = obj_dict["chair_1"]["position"]
-                print(f"Original Chair 1 pos -> {pos_o}")
-                print(f"Chair 1 transformed_pos -> {transformed_pos}")
+            transformed_pos = transformer.transform_point(*obj_dict["chair"]["position"])
+            
+            cnt = cnt + 1
+            Chairs_dict[f"chair_{cnt}"] = {}  # Initialize dictionary entry
 
-            if cnt == 0:   # for rotation
-                waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1] - 1.0, 0.0)]
+            Chairs_dict[f"chair_{cnt}"]["position"] = transformed_pos
+            Chairs_dict[f"chair_{cnt}"]["record"] = True
+            pos_o = obj_dict["chair"]["position"]
+            print(f"Original Chair 1 pos -> {pos_o}")
+            print(f"Chair 1 transformed_pos -> {transformed_pos}")
+            print("cnt: ", cnt)
+            
+            if Chairs_dict[f"chair_{cnt}"]["position"][1] < 0:
+                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0] + 1.0, Chairs_dict[f"chair_{cnt}"]["position"][1] - 1.0, 0.0)]
                 pre_pos = waypoints
-            elif cnt == 1: # for rotation
-                waypoints = [(Chairs_dict["chair_1"]["position"][0] + 0.6, Chairs_dict["chair_1"]["position"][1] + 0.6, 0.0)]
+            elif Chairs_dict[f"chair_{cnt}"]["position"][1] > 0:
+                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0] + 1.0, Chairs_dict[f"chair_{cnt}"]["position"][1] + 1.0, 0.0)]
                 pre_pos = waypoints
-            elif cnt == 2: # for rotation
-                waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1] + 1.0, 0)]
-                pre_pos = waypoints
+
             for waypoint in waypoints:
                 x, y, theta = waypoint
                 goal = MoveBaseGoal()
@@ -125,10 +165,6 @@ def send_waypoints():
 
                 state = client.get_state()
                 if state == 3:  
-                    if "chair_1" in obj_dict:
-                        Chairs_dict["chair_1"]["record"] = False
-                        cnt += 1
-                    print("reset chair_1 ...")
                     rospy.loginfo("Successfully reached goal: {}".format(waypoint))
                     print("\n")
                 else:
@@ -136,7 +172,7 @@ def send_waypoints():
                     print("\n")
         else:
             for pre_pos_ in pre_pos:
-                print("search obj ...")
+                print("searching obj ...")
                 x, y, theta = pre_pos_
                 goal = MoveBaseGoal()
                 goal.target_pose.header = Header()
@@ -150,16 +186,16 @@ def send_waypoints():
                 goal.target_pose.pose.orientation.w = 1.0  
                 client.send_goal(goal)
                 state = client.get_state()
-
-                if "chair_1" in obj_dict:
-                    Chairs_dict["chair_1"]["record"] = False
-                    cnt += 1
             
         rospy.sleep(1)
         
 rospy.Subscriber('object_positions', String, callback)
 
 if __name__ == "__main__":
+    
+
+    
+    
     try:
         send_waypoints()
     except rospy.ROSInterruptException:
