@@ -79,6 +79,8 @@ def send_waypoints():
     transformer = TransformChairPosition()
     client = SimpleActionClient('/move_base', MoveBaseAction)
 
+    pre_pos = []
+
     rospy.loginfo("Waiting for move_base action server to start...")
     client.wait_for_server()
     rospy.loginfo("Connected to move_base server")
@@ -95,12 +97,15 @@ def send_waypoints():
                 print(f"Original Chair 1 pos -> {pos_o}")
                 print(f"Chair 1 transformed_pos -> {transformed_pos}")
 
-            if cnt == 0:
-                waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1] - 1.0, 0.45)]
-            elif cnt == 1:
-                waypoints = [(Chairs_dict["chair_1"]["position"][0] + 0.8, Chairs_dict["chair_1"]["position"][1], 1.45)]
-            elif cnt == 2:
-                waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1] + 1.0, -1.45)]
+            if cnt == 0:   # for rotation
+                waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1] - 1.0, 0.0)]
+                pre_pos = waypoints
+            elif cnt == 1: # for rotation
+                waypoints = [(Chairs_dict["chair_1"]["position"][0] + 0.6, Chairs_dict["chair_1"]["position"][1] + 0.6, 0.0)]
+                pre_pos = waypoints
+            elif cnt == 2: # for rotation
+                waypoints = [(Chairs_dict["chair_1"]["position"][0], Chairs_dict["chair_1"]["position"][1] + 1.0, 0)]
+                pre_pos = waypoints
             for waypoint in waypoints:
                 x, y, theta = waypoint
                 goal = MoveBaseGoal()
@@ -120,25 +125,35 @@ def send_waypoints():
 
                 state = client.get_state()
                 if state == 3:  
-                    if obj_dict["chair_1"]["detected"]:
+                    if "chair_1" in obj_dict:
                         Chairs_dict["chair_1"]["record"] = False
                         cnt += 1
-                        print("reset chair_1 ...")
+                    print("reset chair_1 ...")
                     rospy.loginfo("Successfully reached goal: {}".format(waypoint))
+                    print("\n")
                 else:
                     rospy.logwarn("Failed to reach goal: {} with state: {}".format(waypoint, state))
+                    print("\n")
         else:
+            for pre_pos_ in pre_pos:
+                print("search obj ...")
+                x, y, theta = pre_pos_
                 goal = MoveBaseGoal()
                 goal.target_pose.header = Header()
                 goal.target_pose.header.stamp = rospy.Time.now()
                 goal.target_pose.header.frame_id = "map"                
                 
-                goal.target_pose.pose.position.x = 0
-                goal.target_pose.pose.position.y = 0
+                goal.target_pose.pose.position.x = x
+                goal.target_pose.pose.position.y = y
                 goal.target_pose.pose.position.z = 0.0
-                goal.target_pose.pose.orientation.z = 1.45
+                goal.target_pose.pose.orientation.z = 6.28
                 goal.target_pose.pose.orientation.w = 1.0  
                 client.send_goal(goal)
+                state = client.get_state()
+
+                if "chair_1" in obj_dict:
+                    Chairs_dict["chair_1"]["record"] = False
+                    cnt += 1
             
         rospy.sleep(1)
         
