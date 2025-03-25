@@ -29,33 +29,33 @@ import tf2_ros
 Chairs_dict = {}
 update_flag = True
 
-def publish_chair_positions():
-    """Continuously publishes chair positions as PoseStamped messages to RViz."""
-    rate = rospy.Rate(1)  # Publish at 1 Hz
-    tf_broadcaster = tf2_ros.TransformBroadcaster()
-    while not rospy.is_shutdown():
-        for chair_id, chair_data in Chairs_dict.items():
-            if "position" in chair_data:
-                x, y, z = chair_data["position"]
-            transform = geometry_msgs.msg.TransformStamped()
-            transform.header.stamp = rospy.Time.now()
-            transform.header.frame_id = "map"  # Adjust this based on your setup
-            transform.child_frame_id = chair_id
+# def publish_chair_positions():
+#     """Continuously publishes chair positions as PoseStamped messages to RViz."""
+#     rate = rospy.Rate(1)  # Publish at 1 Hz
+#     tf_broadcaster = tf2_ros.TransformBroadcaster()
+#     while not rospy.is_shutdown():
+#         for chair_id, chair_data in Chairs_dict.items():
+#             if "position" in chair_data:
+#                 x, y, z = chair_data["position"]
+#             transform = geometry_msgs.msg.TransformStamped()
+#             transform.header.stamp = rospy.Time.now()
+#             transform.header.frame_id = "map"  # Adjust this based on your setup
+#             transform.child_frame_id = chair_id
 
-            transform.transform.translation.x = x
-            transform.transform.translation.y = y
-            transform.transform.translation.z = z
+#             transform.transform.translation.x = x
+#             transform.transform.translation.y = y
+#             transform.transform.translation.z = z
             
-            transform.transform.rotation.x = 0
-            transform.transform.rotation.y = 0
-            transform.transform.rotation.z = 0
-            transform.transform.rotation.w = 1
+#             transform.transform.rotation.x = 0
+#             transform.transform.rotation.y = 0
+#             transform.transform.rotation.z = 0
+#             transform.transform.rotation.w = 1
 
-            tf_broadcaster.sendTransform(transform)
-            rospy.loginfo(f"Published TF for {transform.child_frame_id}")
+#             tf_broadcaster.sendTransform(transform)
+#             # rospy.loginfo(f"Published TF for {transform.child_frame_id}")
 
 
-        rate.sleep()
+#         rate.sleep()
 
 
 class TransformChairPosition:
@@ -108,10 +108,10 @@ def send_waypoints():
 
     rospy.init_node('send_waypoints', anonymous=True)
     
-    # Start the chair position publisher in a separate thread
-    publisher_thread = threading.Thread(target=publish_chair_positions)
-    publisher_thread.daemon = True  # Stops with the main script
-    publisher_thread.start()
+    # # Start the chair position publisher in a separate thread
+    # publisher_thread = threading.Thread(target=publish_chair_positions)
+    # publisher_thread.daemon = True  # Stops with the main script
+    # publisher_thread.start()
     
     global transformed_pos
     transformer = TransformChairPosition()
