@@ -6,14 +6,14 @@ from actionlib import SimpleActionClient
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from move_base_msgs.msg import MoveBaseActionResult
 import tf.transformations as tf
-import json
 from std_msgs.msg import String
+from geometry_msgs.msg import PointStamped
 import tf2_ros
 import tf2_geometry_msgs
-from geometry_msgs.msg import PointStamped
 import threading
 import geometry_msgs.msg
 import tf2_ros
+import json
 # map info
 # resolution: 0.05
 # width: 238
@@ -21,9 +21,8 @@ import tf2_ros
 # origin: x y z {-2.75 -5.6 0.0} 
 # frame: map
 
-# Chair 1: (1.88, 0.83, 3.43) -> (3.684297883136837, -1.4521300096470415, -0.7249385538403157)
-# Chair 2: (0.75, 1.12, 8.4) -> (8.509858507416597, 0.21297738285356893, -0.7844677892095936)
-# Chair 3: (-1.33, 0.83, 3.61) -> (3.512881381696345, 1.7570635315974463, -0.8032891220488297)
+# chair 0.56 x 0.56
+# centauro 0.7 x 0.7
 
 # Chairs_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "record": False}}
 Chairs_dict = {}
@@ -102,16 +101,16 @@ def callback(msg):
         rospy.logerr("Failed to decode JSON message!")
 
 transformed_pos = []
-cnt = 0
+cnt = 1
 def send_waypoints():
     global cnt
 
     rospy.init_node('send_waypoints', anonymous=True)
     
-    # # Start the chair position publisher in a separate thread
-    # publisher_thread = threading.Thread(target=publish_chair_positions)
-    # publisher_thread.daemon = True  # Stops with the main script
-    # publisher_thread.start()
+    # Start the chair position publisher in a separate thread
+    publisher_thread = threading.Thread(target=publish_chair_positions)
+    publisher_thread.daemon = True  # Stops when the main script exits
+    publisher_thread.start()
     
     global transformed_pos
     transformer = TransformChairPosition()
@@ -129,7 +128,7 @@ def send_waypoints():
 
             transformed_pos = transformer.transform_point(*obj_dict["chair"]["position"])
             
-            cnt = cnt + 1
+            
             Chairs_dict[f"chair_{cnt}"] = {}  # Initialize dictionary entry
 
             Chairs_dict[f"chair_{cnt}"]["position"] = transformed_pos
@@ -165,6 +164,7 @@ def send_waypoints():
 
                 state = client.get_state()
                 if state == 3:  
+                    cnt = cnt + 1
                     rospy.loginfo("Successfully reached goal: {}".format(waypoint))
                     print("\n")
                 else:
@@ -172,7 +172,7 @@ def send_waypoints():
                     print("\n")
         else:
             for pre_pos_ in pre_pos:
-                print("searching obj ...")
+                print(f"searching {cnt}'th chair ...")
                 x, y, theta = pre_pos_
                 goal = MoveBaseGoal()
                 goal.target_pose.header = Header()
@@ -190,6 +190,19 @@ def send_waypoints():
         rospy.sleep(1)
         
 rospy.Subscriber('object_positions', String, callback)
+
+chairs_pub = rospy.Publisher('/chair_positions', String, queue_size=10)  # Define the publisher
+
+def publish_chair_positions():
+    """Continuously publishes chair positions as a JSON string."""
+    # rate = rospy.Rate(1)  # Publish at 1 Hz
+    while not rospy.is_shutdown():
+        if Chairs_dict:  # Check if dictionary is not empty
+            chairs_json = json.dumps(Chairs_dict)  # Convert dictionary to JSON string
+            chairs_pub.publish(chairs_json)  # Publish the JSON string
+            # rospy.loginfo(f"Published Chairs_dict: {chairs_json}")
+        # rate.sleep()
+
 
 if __name__ == "__main__":
     
