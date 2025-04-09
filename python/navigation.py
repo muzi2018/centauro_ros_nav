@@ -14,10 +14,13 @@ import threading
 import geometry_msgs.msg
 import tf2_ros
 import json
+from nav_msgs.msg import OccupancyGrid
+from geometry_msgs.msg import Twist
+
 # map info
 # resolution: 0.05
-# width: 238
-# height: 236
+# width: 238 x 0.05 = 12
+# height: 236 x 0.05 = 12
 # origin: x y z {-2.75 -5.6 0.0} 
 # frame: map
 
@@ -25,6 +28,10 @@ import json
 # centauro 0.7 x 0.7
 
 # Chairs_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "record": False}}
+
+width = 10
+height = 10
+
 Chairs_dict = {}
 update_flag = True
 
@@ -122,7 +129,6 @@ def send_waypoints():
     client.wait_for_server()
     rospy.loginfo("Connected to move_base server")
     while not rospy.is_shutdown():    
-
         if "chair" in obj_dict:
             print("obj_dict :", obj_dict)
 
@@ -139,10 +145,10 @@ def send_waypoints():
             print("cnt: ", cnt)
             
             if Chairs_dict[f"chair_{cnt}"]["position"][1] < 0:
-                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0] + 1.0, Chairs_dict[f"chair_{cnt}"]["position"][1] - 1.0, 0.0)]
+                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0], Chairs_dict[f"chair_{cnt}"]["position"][1] - 1.0, 0.0)]
                 pre_pos = waypoints
             elif Chairs_dict[f"chair_{cnt}"]["position"][1] > 0:
-                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0] + 1.0, Chairs_dict[f"chair_{cnt}"]["position"][1] + 1.0, 0.0)]
+                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0], Chairs_dict[f"chair_{cnt}"]["position"][1] + 1.0, 0.0)]
                 pre_pos = waypoints
 
             for waypoint in waypoints:
@@ -173,25 +179,32 @@ def send_waypoints():
         else:
             for pre_pos_ in pre_pos:
                 print(f"searching {cnt}'th chair ...")
-                x, y, theta = pre_pos_
-                goal = MoveBaseGoal()
-                goal.target_pose.header = Header()
-                goal.target_pose.header.stamp = rospy.Time.now()
-                goal.target_pose.header.frame_id = "map"                
+                twist = Twist()
+                twist.angular.z = 0.5  # Positive = counter-clockwise rotation
+                cmd_vel_pub.publish(twist)
+                # x, y, theta = pre_pos_
+                # goal = MoveBaseGoal()
+                # goal.target_pose.header = Header()
+                # goal.target_pose.header.stamp = rospy.Time.now()
+                # goal.target_pose.header.frame_id = "map"                
                 
-                goal.target_pose.pose.position.x = x
-                goal.target_pose.pose.position.y = y
-                goal.target_pose.pose.position.z = 0.0
-                goal.target_pose.pose.orientation.z = 6.28
-                goal.target_pose.pose.orientation.w = 1.0  
-                client.send_goal(goal)
-                state = client.get_state()
+                # goal.target_pose.pose.position.x = x
+                # goal.target_pose.pose.position.y = y
+                # goal.target_pose.pose.position.z = 0.0
+                # goal.target_pose.pose.orientation.z = 1.0
+                # goal.target_pose.pose.orientation.w = 0.0
+                # client.send_goal(goal)
+                # state = client.get_state()
             
         rospy.sleep(1)
         
 rospy.Subscriber('object_positions', String, callback)
 
 chairs_pub = rospy.Publisher('/chair_positions', String, queue_size=10)  # Define the publisher
+
+cmd_vel_pub = rospy.Publisher('/omnisteering/cmd_vel', Twist, queue_size=10)
+
+
 
 def publish_chair_positions():
     """Continuously publishes chair positions as a JSON string."""
