@@ -17,6 +17,7 @@ from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import Twist
 from apriltag_ros.msg import AprilTagDetectionArray
 import tf
+import math
 
 # map info
 # resolution: 0.05
@@ -39,7 +40,7 @@ from geometry_msgs.msg import PoseStamped
 
 
 
-
+search_tag = False
 width = 10
 height = 10
 
@@ -174,7 +175,7 @@ def callback(msg):
 transformed_pos = []
 cnt = 1
 def send_waypoints():
-    global cnt, tag_yaw
+    global cnt, tag_yaw, search_tag
 
     rospy.init_node('send_waypoints', anonymous=True)
     
@@ -197,59 +198,88 @@ def send_waypoints():
             print("obj_dict :", obj_dict)
             transformed_pos = transformer.transform_point(*obj_dict["chair"]["position"])
             
+
             
-            Chairs_dict[f"chair_{cnt}"] = {}  # Initialize dictionary entry
 
-            Chairs_dict[f"chair_{cnt}"]["position"] = transformed_pos
-            
-            Chairs_dict[f"chair_{cnt}"]["record"] = True
-            Chairs_dict[f"chair_{cnt}"]["ori"] = tag_yaw
-            print("tag_yaw = ", tag_yaw)
-            pos_o = obj_dict["chair"]["position"]
-            print(f"Original Chair 1 pos -> {pos_o}")
-            print(f"Chair 1 transformed_pos -> {transformed_pos}")
-            print("cnt: ", cnt)
-            print("Chairs_dict: ", Chairs_dict)
-            
-            if Chairs_dict[f"chair_{cnt}"]["position"][1] < 0:
-                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0], Chairs_dict[f"chair_{cnt}"]["position"][1] - 1.3, 0)]
-                pre_pos = waypoints
-            elif Chairs_dict[f"chair_{cnt}"]["position"][1] > 0:
-                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0], Chairs_dict[f"chair_{cnt}"]["position"][1] + 1.3, 0)]
-                pre_pos = waypoints
+            # print("tag_yaw = ", tag_yaw)
+            # pos_o = obj_dict["chair"]["position"]
+            # print(f"Original Chair 1 pos -> {pos_o}")
+            # print(f"Chair 1 transformed_pos -> {transformed_pos}")
+            # print("cnt: ", cnt)
+            # print("Chairs_dict: ", Chairs_dict)
 
-            for waypoint in waypoints:
-                x, y, theta = waypoint
-                goal = MoveBaseGoal()
-                goal.target_pose.header = Header()
-                goal.target_pose.header.stamp = rospy.Time.now()
-                goal.target_pose.header.frame_id = "map"                
-                
-                goal.target_pose.pose.position.x = x
-                goal.target_pose.pose.position.y = y
-                goal.target_pose.pose.position.z = 0.0
-                goal.target_pose.pose.orientation.z = theta
-                goal.target_pose.pose.orientation.w = 1.0  
+            x_curr, y_curr, _ = transformed_pos
+            is_new_chair = True
+            for chair_key, chair_data in Chairs_dict.items():
+                if "position" in chair_data:
+                    x_other, y_other, _ = chair_data["position"]
+                    distance = math.sqrt((x_curr - x_other)**2 + (y_curr - y_other)**2)
+                    rospy.loginfo(f"Distance between current chair and {chair_key}: {distance:.2f} meters")
 
-                rospy.loginfo("Sending goal: {}".format(waypoint))
-                
-                client.send_goal(goal)
-                client.wait_for_result()
+                    if distance < 0.56:
+                        rospy.loginfo(f"Distance < 0.56 meters. Chair is too close to {chair_key}. Sending stop flag.")
+                        is_new_chair = False
+                        # You can publish or trigger a flag here
+                        # stop_pub.publish("stop") or similar logic
+                        break
 
-                state = client.get_state()
-                if state == 3:  
-                    cnt = cnt + 1
-                    tag_yaw = 0
-                    rospy.loginfo("Successfully reached goal: {}".format(waypoint))
-                    print("\n")
-                else:
-                    rospy.logwarn("Failed to reach goal: {} with state: {}".format(waypoint, state))
-                    print("\n")
+            if is_new_chair:
+                Chairs_dict[f"chair_{cnt}"] = {}  # Initialize dictionary entry
+                Chairs_dict[f"chair_{cnt}"]["position"] = transformed_pos
+                Chairs_dict[f"chair_{cnt}"]["record"] = True
+                Chairs_dict[f"chair_{cnt}"]["ori"] = tag_yaw
+                if Chairs_dict[f"chair_{cnt}"]["position"][1] < 0:
+                    waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0] , Chairs_dict[f"chair_{cnt}"]["position"][1] - 1.3, Chairs_dict[f"chair_{cnt}"]["ori"])]
+                    pre_pos = waypoints
+                elif Chairs_dict[f"chair_{cnt}"]["position"][1] > 0:
+                    waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0] , Chairs_dict[f"chair_{cnt}"]["position"][1] + 1.3, Chairs_dict[f"chair_{cnt}"]["ori"])]
+                    pre_pos = waypoints
+
+                for waypoint in waypoints:
+                    x, y, theta = waypoint
+                    goal = MoveBaseGoal()
+                    goal.target_pose.header = Header()
+                    goal.target_pose.header.stamp = rospy.Time.now()
+                    goal.target_pose.header.frame_id = "map"                
+                    
+                    goal.target_pose.pose.position.x = x
+                    goal.target_pose.pose.position.y = y
+                    goal.target_pose.pose.position.z = 0.0
+                    goal.target_pose.pose.orientation.z = theta
+                    goal.target_pose.pose.orientation.w = 1.0  
+
+                    rospy.loginfo("Sending goal: {}".format(waypoint))
+                    
+                    client.send_goal(goal)
+                    client.wait_for_result()
+
+                    state = client.get_state()
+                    if state == 3:  
+                        cnt = cnt + 1
+                        tag_yaw = 0
+                        rospy.loginfo("Successfully reached goal: {}".format(waypoint))
+                        print("\n")
+                    else:
+                        del Chairs_dict[f"chair_{cnt}"]
+                        search_tag = True
+                        rospy.logwarn("Failed to reach goal: {} with state: {}".format(waypoint, state))
+                        print("\n")
+
+            # chair_1_pos = Chairs_dict["chair_1"]["position"]
+            # x1, y1, _ = chair_1_pos
+            # for chair_key, chair_data in Chairs_dict.items():
+            #     if chair_key != "chair_1" and "position" in chair_data:
+            #         chair_pos = chair_data["position"]
+            #         x2, y2, _ = chair_pos
+            #         distance = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            #         rospy.loginfo(f"Distance between chair_1 and {chair_key}: {distance:.2f} meters")
+            #         if distance < 0.56:
+            #             rospy.loginfo(f"Distance < 0.56 meters. Sending stop flag for {chair_key}.")
         else:
             for pre_pos_ in pre_pos:
                 print(f"searching {cnt}'th chair ...")
                 twist = Twist()
-                twist.angular.z = 0.5  # Positive = counter-clockwise rotation
+                twist.angular.z = -1  # Positive = counter-clockwise rotation
                 cmd_vel_pub.publish(twist)
                 # x, y, theta = pre_pos_
                 # goal = MoveBaseGoal()
@@ -264,7 +294,13 @@ def send_waypoints():
                 # goal.target_pose.pose.orientation.w = 0.0
                 # client.send_goal(goal)
                 # state = client.get_state()
-            
+        
+        if search_tag:
+                print(f"searching {cnt}'th chair ...")
+                twist = Twist()
+                twist.angular.z = -1  # Positive = counter-clockwise rotation
+                cmd_vel_pub.publish(twist)
+        
         rospy.sleep(1)
         
 rospy.Subscriber('object_positions', String, callback)
