@@ -5,6 +5,7 @@ from std_msgs.msg import Header
 from actionlib import SimpleActionClient
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from move_base_msgs.msg import MoveBaseActionResult
+import tf.transformations as tf
 from std_msgs.msg import String
 from geometry_msgs.msg import PointStamped
 import tf2_ros
@@ -15,8 +16,6 @@ import tf2_ros
 import json
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import Twist
-from apriltag_ros.msg import AprilTagDetectionArray
-import tf
 
 # map info
 # resolution: 0.05
@@ -29,16 +28,6 @@ import tf
 # centauro 0.7 x 0.7
 
 # Chairs_dict = {"chair_1": {"position":(0.0, 0.0, 0.0), "record": False}}
-
-
-from tf.transformations import euler_from_quaternion
-import tf2_ros
-from geometry_msgs.msg import PoseStamped
-
-
-
-
-
 
 width = 10
 height = 10
@@ -142,27 +131,17 @@ def send_waypoints():
     while not rospy.is_shutdown():    
         if "chair" in obj_dict:
             print("obj_dict :", obj_dict)
-
             transformed_pos = transformer.transform_point(*obj_dict["chair"]["position"])
-            
-            
-            Chairs_dict[f"chair_{cnt}"] = {}  # Initialize dictionary entry
 
+            Chairs_dict[f"chair_{cnt}"] = {}  # Initialize dictionary entry
             Chairs_dict[f"chair_{cnt}"]["position"] = transformed_pos
-            Chairs_dict[f"chair_{cnt}"]["ori"] = obj_dict["chair"]["ori"]
-            
             Chairs_dict[f"chair_{cnt}"]["record"] = True
-            pos_o = obj_dict["chair"]["position"]
-            print(f"Original Chair 1 pos -> {pos_o}")
-            print(f"Chair 1 transformed_pos -> {transformed_pos}")
-            print("cnt: ", cnt)
-            print("Chairs_dict: ", Chairs_dict)
             
             if Chairs_dict[f"chair_{cnt}"]["position"][1] < 0:
-                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0], Chairs_dict[f"chair_{cnt}"]["position"][1] - 1.3, Chairs_dict[f"chair_{cnt}"]["ori"])]
+                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0], Chairs_dict[f"chair_{cnt}"]["position"][1] - 1.0, 0.0)]
                 pre_pos = waypoints
             elif Chairs_dict[f"chair_{cnt}"]["position"][1] > 0:
-                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0], Chairs_dict[f"chair_{cnt}"]["position"][1] + 1.3, Chairs_dict[f"chair_{cnt}"]["ori"])]
+                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0], Chairs_dict[f"chair_{cnt}"]["position"][1] + 1.0, 0.0)]
                 pre_pos = waypoints
 
             for waypoint in waypoints:
@@ -196,26 +175,11 @@ def send_waypoints():
                 twist = Twist()
                 twist.angular.z = 0.5  # Positive = counter-clockwise rotation
                 cmd_vel_pub.publish(twist)
-                # x, y, theta = pre_pos_
-                # goal = MoveBaseGoal()
-                # goal.target_pose.header = Header()
-                # goal.target_pose.header.stamp = rospy.Time.now()
-                # goal.target_pose.header.frame_id = "map"                
-                
-                # goal.target_pose.pose.position.x = x
-                # goal.target_pose.pose.position.y = y
-                # goal.target_pose.pose.position.z = 0.0
-                # goal.target_pose.pose.orientation.z = 1.0
-                # goal.target_pose.pose.orientation.w = 0.0
-                # client.send_goal(goal)
-                # state = client.get_state()
             
         rospy.sleep(1)
         
 rospy.Subscriber('object_positions', String, callback)
-
 chairs_pub = rospy.Publisher('/chair_positions', String, queue_size=10)  # Define the publisher
-
 cmd_vel_pub = rospy.Publisher('/omnisteering/cmd_vel', Twist, queue_size=10)
 
 
@@ -232,9 +196,11 @@ def publish_chair_positions():
 
 
 if __name__ == "__main__":
+    
+
+    
+    
     try:
         send_waypoints()
-        # Setup TF2 buffer and listener (should be created globally once)
-
     except rospy.ROSInterruptException:
         rospy.logerr("ROS interrupted. Exiting...")
