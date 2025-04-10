@@ -47,6 +47,10 @@ height = 10
 Chairs_dict = {}
 update_flag = True
 tag_yaw = 0
+
+tf_buffer = None
+tf_listener = None
+
 # def publish_chair_positions():
 #     """Continuously publishes chair positions as PoseStamped messages to RViz."""
 #     rate = rospy.Rate(1)  # Publish at 1 Hz
@@ -79,6 +83,8 @@ tag_yaw = 0
 
 def tag_detections_callback(msg):
     global tag_yaw
+    global tf_buffer
+
     if not msg.detections:
         rospy.loginfo("No AprilTags detected.")
         return
@@ -130,8 +136,12 @@ def tag_detections_callback(msg):
 
 
 class TransformChairPosition:
+    global tf_buffer
+
+
     def __init__(self):
-        self.tf_buffer = tf2_ros.Buffer()
+        # self.tf_buffer = tf2_ros.Buffer()
+        self.tf_buffer = tf_buffer
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
     def transform_point(self, x, y, z):
@@ -176,6 +186,10 @@ transformed_pos = []
 cnt = 1
 def send_waypoints():
     global cnt, tag_yaw, search_tag
+    
+    global tf_buffer, tf_listener
+    tf_buffer = tf2_ros.Buffer()
+    tf_listener = tf2_ros.TransformListener(tf_buffer)
 
     rospy.init_node('send_waypoints', anonymous=True)
     
