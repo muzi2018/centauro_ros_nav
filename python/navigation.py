@@ -174,7 +174,7 @@ def callback(msg):
 transformed_pos = []
 cnt = 1
 def send_waypoints():
-    global cnt
+    global cnt, tag_yaw
 
     rospy.init_node('send_waypoints', anonymous=True)
     
@@ -193,9 +193,8 @@ def send_waypoints():
     client.wait_for_server()
     rospy.loginfo("Connected to move_base server")
     while not rospy.is_shutdown():    
-        if "chair" in obj_dict:
+        if "chair" in obj_dict and tag_yaw is not 0:
             print("obj_dict :", obj_dict)
-
             transformed_pos = transformer.transform_point(*obj_dict["chair"]["position"])
             
             
@@ -233,13 +232,14 @@ def send_waypoints():
                 goal.target_pose.pose.orientation.w = 1.0  
 
                 rospy.loginfo("Sending goal: {}".format(waypoint))
-                if tag_yaw is not 0:
-                    client.send_goal(goal)
-                    client.wait_for_result()
+                
+                client.send_goal(goal)
+                client.wait_for_result()
 
                 state = client.get_state()
                 if state == 3:  
                     cnt = cnt + 1
+                    tag_yaw = 0
                     rospy.loginfo("Successfully reached goal: {}".format(waypoint))
                     print("\n")
                 else:
