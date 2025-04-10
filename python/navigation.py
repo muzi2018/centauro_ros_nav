@@ -45,7 +45,7 @@ height = 10
 
 Chairs_dict = {}
 update_flag = True
-
+tag_yaw = 0
 # def publish_chair_positions():
 #     """Continuously publishes chair positions as PoseStamped messages to RViz."""
 #     rate = rospy.Rate(1)  # Publish at 1 Hz
@@ -77,6 +77,7 @@ update_flag = True
 
 
 def tag_detections_callback(msg):
+    global tag_yaw
     if not msg.detections:
         rospy.loginfo("No AprilTags detected.")
         return
@@ -90,9 +91,9 @@ def tag_detections_callback(msg):
         position = pose.position
         orientation = pose.orientation
 
-        rospy.loginfo(f"Detected AprilTag ID: {tag_id}")
-        rospy.loginfo(f"Position in camera frame: ({position.x:.2f}, {position.y:.2f}, {position.z:.2f})")
-        rospy.loginfo(f"Orientation in camera frame (Quaternion): ({orientation.x:.2f}, {orientation.y:.2f}, {orientation.z:.2f}, {orientation.w:.2f})")
+        # rospy.loginfo(f"Detected AprilTag ID: {tag_id}")
+        # rospy.loginfo(f"Position in camera frame: ({position.x:.2f}, {position.y:.2f}, {position.z:.2f})")
+        # rospy.loginfo(f"Orientation in camera frame (Quaternion): ({orientation.x:.2f}, {orientation.y:.2f}, {orientation.z:.2f}, {orientation.w:.2f})")
 
         try:
             # Create PoseStamped from detection
@@ -116,7 +117,11 @@ def tag_detections_callback(msg):
                 map_orientation.w
             ])
 
-            rospy.loginfo(f"Orientation in MAP frame (Euler): Roll = {euler_map[0]:.2f}, Pitch = {euler_map[1]:.2f}, Yaw = {euler_map[2]:.2f}")
+            # rospy.loginfo(f"Orientation in MAP frame (Euler): Roll = {euler_map[0]:.2f}, Pitch = {euler_map[1]:.2f}, Yaw = {euler_map[2]:.2f}")
+            if "chair" in obj_dict:
+                tag_yaw = -euler_map[2]
+            else:
+                tag_yaw = 0
 
         except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as e:
             rospy.logwarn(f"TF transform failed: {e}")
@@ -199,6 +204,8 @@ def send_waypoints():
             Chairs_dict[f"chair_{cnt}"]["position"] = transformed_pos
             
             Chairs_dict[f"chair_{cnt}"]["record"] = True
+            Chairs_dict[f"chair_{cnt}"]["ori"] = tag_yaw
+            print("tag_yaw = ", tag_yaw)
             pos_o = obj_dict["chair"]["position"]
             print(f"Original Chair 1 pos -> {pos_o}")
             print(f"Chair 1 transformed_pos -> {transformed_pos}")
@@ -226,8 +233,9 @@ def send_waypoints():
                 goal.target_pose.pose.orientation.w = 1.0  
 
                 rospy.loginfo("Sending goal: {}".format(waypoint))
-                client.send_goal(goal)
-                client.wait_for_result()
+                if tag_yaw is not 0:
+                    client.send_goal(goal)
+                    client.wait_for_result()
 
                 state = client.get_state()
                 if state == 3:  
