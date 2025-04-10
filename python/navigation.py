@@ -73,6 +73,54 @@ update_flag = True
 
 
 #         rate.sleep()
+# Setup TF2 buffer and listener (should be created globally once)
+
+
+def tag_detections_callback(msg):
+    if not msg.detections:
+        rospy.loginfo("No AprilTags detected.")
+        return
+
+    for detection in msg.detections:
+        tf_buffer = tf2_ros.Buffer()
+        tf_listener = tf2_ros.TransformListener(tf_buffer)
+        tag_id = detection.id[0]
+        pose = detection.pose.pose.pose  # geometry_msgs/Pose
+        
+        position = pose.position
+        orientation = pose.orientation
+
+        rospy.loginfo(f"Detected AprilTag ID: {tag_id}")
+        rospy.loginfo(f"Position in camera frame: ({position.x:.2f}, {position.y:.2f}, {position.z:.2f})")
+        rospy.loginfo(f"Orientation in camera frame (Quaternion): ({orientation.x:.2f}, {orientation.y:.2f}, {orientation.z:.2f}, {orientation.w:.2f})")
+
+        try:
+            # Create PoseStamped from detection
+            cam_pose_stamped = PoseStamped()
+            cam_pose_stamped.header.frame_id = "D435_head_camera_color_optical_frame"
+            cam_pose_stamped.header.stamp = rospy.Time.now()
+            cam_pose_stamped.pose = pose
+
+            # Transform the pose to map frame
+            map_pose_stamped = tf2_geometry_msgs.do_transform_pose(
+                cam_pose_stamped,
+                tf_buffer.lookup_transform("map", cam_pose_stamped.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
+            )
+
+            # Extract orientation in map frame
+            map_orientation = map_pose_stamped.pose.orientation
+            euler_map = euler_from_quaternion([
+                map_orientation.x,
+                map_orientation.y,
+                map_orientation.z,
+                map_orientation.w
+            ])
+
+            rospy.loginfo(f"Orientation in MAP frame (Euler): Roll = {euler_map[0]:.2f}, Pitch = {euler_map[1]:.2f}, Yaw = {euler_map[2]:.2f}")
+
+        except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as e:
+            rospy.logwarn(f"TF transform failed: {e}")
+
 
 
 class TransformChairPosition:
@@ -149,7 +197,6 @@ def send_waypoints():
             Chairs_dict[f"chair_{cnt}"] = {}  # Initialize dictionary entry
 
             Chairs_dict[f"chair_{cnt}"]["position"] = transformed_pos
-            Chairs_dict[f"chair_{cnt}"]["ori"] = obj_dict["chair"]["ori"]
             
             Chairs_dict[f"chair_{cnt}"]["record"] = True
             pos_o = obj_dict["chair"]["position"]
@@ -159,10 +206,10 @@ def send_waypoints():
             print("Chairs_dict: ", Chairs_dict)
             
             if Chairs_dict[f"chair_{cnt}"]["position"][1] < 0:
-                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0], Chairs_dict[f"chair_{cnt}"]["position"][1] - 1.3, Chairs_dict[f"chair_{cnt}"]["ori"])]
+                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0], Chairs_dict[f"chair_{cnt}"]["position"][1] - 1.3, 0)]
                 pre_pos = waypoints
             elif Chairs_dict[f"chair_{cnt}"]["position"][1] > 0:
-                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0], Chairs_dict[f"chair_{cnt}"]["position"][1] + 1.3, Chairs_dict[f"chair_{cnt}"]["ori"])]
+                waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0], Chairs_dict[f"chair_{cnt}"]["position"][1] + 1.3, 0)]
                 pre_pos = waypoints
 
             for waypoint in waypoints:
@@ -229,6 +276,9 @@ def publish_chair_positions():
             chairs_pub.publish(chairs_json)  # Publish the JSON string
             # rospy.loginfo(f"Published Chairs_dict: {chairs_json}")
         # rate.sleep()
+
+
+rospy.Subscriber("/tag_detections", AprilTagDetectionArray, tag_detections_callback)
 
 
 if __name__ == "__main__":
