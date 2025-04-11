@@ -142,7 +142,7 @@ def tag_detections_callback(msg):
         except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as e:
             rospy.logwarn(f"TF transform failed: {e}")
 
-def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 1.0):
+def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 1.4):
     """
     Computes a goal pose in front of the chair, facing it.
     """
