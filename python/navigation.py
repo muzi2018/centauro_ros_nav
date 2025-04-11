@@ -142,22 +142,24 @@ def tag_detections_callback(msg):
         except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as e:
             rospy.logwarn(f"TF transform failed: {e}")
 
-def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 1.4):
+def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 0.9):
     """
     Computes a goal pose in front of the chair, facing it.
     """
     # Move backwards from the chair along its facing direction (yaw)
     chair_yaw_degrees = math.degrees(chair_yaw)
-    chair_yaw_degrees = chair_yaw_degrees - 180
-    print("chair_yaw_degrees = ", chair_yaw_degrees)
-    x_goal = chair_x + distance * math.cos(chair_yaw_degrees)
-    y_goal = chair_y + distance * math.sin(chair_yaw_degrees)
-    
     print("chair_x: ", chair_x)
     print("chair_y: ", chair_y)
-    print("chair_yaw: ", chair_yaw)    
-    print("x_goal: ", x_goal)    
-    print("y_goal: ", y_goal)    
+    print("chair_yaw_degrees: ", chair_yaw_degrees)
+
+    
+    # chair_yaw_degrees = chair_yaw_degrees - 180
+    if chair_yaw >= 1.57: # x+, y-
+        chair_yaw = chair_yaw - 1.57
+        x_goal = chair_x + distance * math.sin(chair_yaw)
+        y_goal = chair_y - distance * math.cos(chair_yaw)
+    
+ 
     
     # Robot should face the chair, so its yaw is same as chair's yaw
     yaw_goal = chair_yaw
