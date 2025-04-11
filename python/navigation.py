@@ -126,28 +126,38 @@ def tag_detections_callback(msg):
                 map_orientation.w
             ])
 
-            print("tag_roll: ", -euler_map[0])
+            # print("tag_yaw: ", euler_map[2])
+            
             # print("tag_pitch: ", -euler_map[1])
             # print("tag_yaw: ", -euler_map[2])
             
             # print("tag_yaw: ", tag_yaw)
             # rospy.loginfo(f"Orientation in MAP frame (Euler): Roll = {euler_map[0]:.2f}, Pitch = {euler_map[1]:.2f}, Yaw = {euler_map[2]:.2f}")
             if "chair" in obj_dict:
-                tag_roll = -euler_map[0]
+                tag_yaw = euler_map[2]
                 # print("tag_roll: ", tag_roll)
             else:
-                tag_roll = None
+                tag_yaw = None
 
         except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as e:
             rospy.logwarn(f"TF transform failed: {e}")
 
-def compute_waypoint(chair_x, chair_y, chair_yaw, distance=1.5):
+def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 1.0):
     """
     Computes a goal pose in front of the chair, facing it.
     """
     # Move backwards from the chair along its facing direction (yaw)
-    x_goal = chair_x - distance * math.cos(chair_yaw)
-    y_goal = chair_y - distance * math.sin(chair_yaw)
+    chair_yaw_degrees = math.degrees(chair_yaw)
+    chair_yaw_degrees = chair_yaw_degrees - 180
+    print("chair_yaw_degrees = ", chair_yaw_degrees)
+    x_goal = chair_x + distance * math.cos(chair_yaw_degrees)
+    y_goal = chair_y + distance * math.sin(chair_yaw_degrees)
+    
+    print("chair_x: ", chair_x)
+    print("chair_y: ", chair_y)
+    print("chair_yaw: ", chair_yaw)    
+    print("x_goal: ", x_goal)    
+    print("y_goal: ", y_goal)    
     
     # Robot should face the chair, so its yaw is same as chair's yaw
     yaw_goal = chair_yaw
@@ -203,7 +213,7 @@ def callback(msg):
 transformed_pos = []
 cnt = 1
 def send_waypoints():
-    global cnt, tag_roll, search_tag
+    global cnt, tag_roll, search_tag, tag_yaw
     global tf_buffer, tf_listener
     rospy.init_node('send_waypoints', anonymous=True)
     os.environ['ROSCONSOLE_CONFIG_FILE'] = os.path.expanduser('~/.ros/rosconsole.config')
@@ -225,8 +235,8 @@ def send_waypoints():
     client.wait_for_server()
     rospy.loginfo("Connected to move_base server")
     while not rospy.is_shutdown():    
-        print("tag_roll = ", tag_roll)
-        if "chair" in obj_dict and tag_roll != None:
+        print("tag_yaw = ", tag_yaw)
+        if "chair" in obj_dict and tag_yaw != None:
             print("obj_dict :", obj_dict)
             transformed_pos = transformer.transform_point(*obj_dict["chair"]["position"])
             x_curr, y_curr, _ = transformed_pos
@@ -249,7 +259,7 @@ def send_waypoints():
                 Chairs_dict[f"chair_{cnt}"] = {}  # Initialize dictionary entry
                 Chairs_dict[f"chair_{cnt}"]["position"] = transformed_pos
                 Chairs_dict[f"chair_{cnt}"]["record"] = True
-                Chairs_dict[f"chair_{cnt}"]["ori"] = tag_roll + 1.57
+                Chairs_dict[f"chair_{cnt}"]["ori"] = tag_yaw 
                 if Chairs_dict[f"chair_{cnt}"]["position"][1] < 0:
                     x_chair, y_chair, _ = Chairs_dict[f"chair_{cnt}"]["position"]
                     yaw_chair = Chairs_dict[f"chair_{cnt}"]["ori"]
@@ -283,7 +293,7 @@ def send_waypoints():
                     state = client.get_state()
                     if state == 3:  
                         cnt = cnt + 1
-                        tag_roll = None
+                        tag_yaw = None
                         rospy.loginfo("Successfully reached goal: {}".format(waypoint))
                         print("\n")
                     else:
