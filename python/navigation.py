@@ -154,12 +154,21 @@ def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 0.9):
 
     
     # chair_yaw_degrees = chair_yaw_degrees - 180
-    if chair_yaw >= 1.57: # x+, y-
+    if chair_yaw >= 0 and chair_yaw <= 1.57:      # x-, y-
+        x_goal = chair_x - distance * math.cos(chair_yaw)
+        y_goal = chair_y - distance * math.sin(chair_yaw)
+    elif chair_yaw >= 1.57 and chair_yaw <= 3.14:     # x+, y-
         chair_yaw = chair_yaw - 1.57
         x_goal = chair_x + distance * math.sin(chair_yaw)
         y_goal = chair_y - distance * math.cos(chair_yaw)
-    
- 
+    elif chair_yaw <= -1.57:       # x+, y+
+        chair_yaw = chair_yaw + 3.14
+        x_goal = chair_x + distance * math.cos(chair_yaw)
+        y_goal = chair_y + distance * math.sin(chair_yaw)
+    elif chair_yaw <= 0 and chair_yaw >= -1.57:
+        chair_yaw = chair_yaw + 1.57
+        x_goal = chair_x - distance * math.sin(chair_yaw)
+        y_goal = chair_y + distance * math.cos(chair_yaw)
     
     # Robot should face the chair, so its yaw is same as chair's yaw
     yaw_goal = chair_yaw
@@ -285,6 +294,7 @@ def send_waypoints():
                     goal.target_pose.pose.position.y = y
                     goal.target_pose.pose.position.z = 0.0
                     goal.target_pose.pose.orientation.z = theta
+                    print("theta: ", theta)
                     goal.target_pose.pose.orientation.w = 1.0  
 
                     rospy.loginfo("Sending goal: {}".format(waypoint))
