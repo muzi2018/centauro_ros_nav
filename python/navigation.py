@@ -18,6 +18,7 @@ from geometry_msgs.msg import Twist
 from apriltag_ros.msg import AprilTagDetectionArray
 import tf
 import math
+import os
 
 # map info
 # resolution: 0.05
@@ -46,7 +47,8 @@ height = 10
 
 Chairs_dict = {}
 update_flag = True
-tag_yaw = 0
+tag_yaw = None
+tag_roll = None
 
 tf_buffer = None
 tf_listener = None
@@ -82,16 +84,16 @@ tf_listener = None
 
 
 def tag_detections_callback(msg):
-    global tag_yaw
+    global tag_yaw, tag_roll
     global tf_buffer
 
     if not msg.detections:
-        rospy.loginfo("No AprilTags detected.")
+        # rospy.loginfo("No AprilTags detected.")
         return
 
     for detection in msg.detections:
-        tf_buffer = tf2_ros.Buffer()
-        tf_listener = tf2_ros.TransformListener(tf_buffer)
+        # tf_buffer = tf2_ros.Buffer()
+        # tf_listener = tf2_ros.TransformListener(tf_buffer)
         tag_id = detection.id[0]
         pose = detection.pose.pose.pose  # geometry_msgs/Pose
         
@@ -124,30 +126,46 @@ def tag_detections_callback(msg):
                 map_orientation.w
             ])
 
+            print("tag_roll: ", -euler_map[0])
+            # print("tag_pitch: ", -euler_map[1])
+            # print("tag_yaw: ", -euler_map[2])
+            
+            # print("tag_yaw: ", tag_yaw)
             # rospy.loginfo(f"Orientation in MAP frame (Euler): Roll = {euler_map[0]:.2f}, Pitch = {euler_map[1]:.2f}, Yaw = {euler_map[2]:.2f}")
             if "chair" in obj_dict:
-                tag_yaw = -euler_map[2]
+                tag_roll = -euler_map[0]
+                # print("tag_roll: ", tag_roll)
             else:
-                tag_yaw = 0
+                tag_roll = None
 
         except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as e:
             rospy.logwarn(f"TF transform failed: {e}")
 
+def compute_waypoint(chair_x, chair_y, chair_yaw, distance=1.5):
+    """
+    Computes a goal pose in front of the chair, facing it.
+    """
+    # Move backwards from the chair along its facing direction (yaw)
+    x_goal = chair_x - distance * math.cos(chair_yaw)
+    y_goal = chair_y - distance * math.sin(chair_yaw)
+    
+    # Robot should face the chair, so its yaw is same as chair's yaw
+    yaw_goal = chair_yaw
+    
+    return x_goal, y_goal, yaw_goal
 
 
 class TransformChairPosition:
     global tf_buffer
 
 
-    def __init__(self):
-        # self.tf_buffer = tf2_ros.Buffer()
-        self.tf_buffer = tf_buffer
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+    # def __init__(self):
+    #     # self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
     def transform_point(self, x, y, z):
         try:
-            self.tf_buffer.can_transform('map', '435_head_camera_color_optical_frame', rospy.Time(0), rospy.Duration(1.0))
-            transform_stamped = self.tf_buffer.lookup_transform(
+            tf_buffer.can_transform('map', '435_head_camera_color_optical_frame', rospy.Time(0), rospy.Duration(1.0))
+            transform_stamped = tf_buffer.lookup_transform(
                 'map',                                                  # Target frame
                 'D435_head_camera_color_optical_frame',                 # Source frame
                 rospy.Time(0),                                          # Get the latest transform
@@ -185,13 +203,12 @@ def callback(msg):
 transformed_pos = []
 cnt = 1
 def send_waypoints():
-    global cnt, tag_yaw, search_tag
-    
+    global cnt, tag_roll, search_tag
     global tf_buffer, tf_listener
+    rospy.init_node('send_waypoints', anonymous=True)
+    os.environ['ROSCONSOLE_CONFIG_FILE'] = os.path.expanduser('~/.ros/rosconsole.config')
     tf_buffer = tf2_ros.Buffer()
     tf_listener = tf2_ros.TransformListener(tf_buffer)
-
-    rospy.init_node('send_waypoints', anonymous=True)
     
     # Start the chair position publisher in a separate thread
     publisher_thread = threading.Thread(target=publish_chair_positions)
@@ -208,20 +225,10 @@ def send_waypoints():
     client.wait_for_server()
     rospy.loginfo("Connected to move_base server")
     while not rospy.is_shutdown():    
-        if "chair" in obj_dict and tag_yaw is not 0:
+        print("tag_roll = ", tag_roll)
+        if "chair" in obj_dict and tag_roll != None:
             print("obj_dict :", obj_dict)
             transformed_pos = transformer.transform_point(*obj_dict["chair"]["position"])
-            
-
-            
-
-            # print("tag_yaw = ", tag_yaw)
-            # pos_o = obj_dict["chair"]["position"]
-            # print(f"Original Chair 1 pos -> {pos_o}")
-            # print(f"Chair 1 transformed_pos -> {transformed_pos}")
-            # print("cnt: ", cnt)
-            # print("Chairs_dict: ", Chairs_dict)
-
             x_curr, y_curr, _ = transformed_pos
             is_new_chair = True
             for chair_key, chair_data in Chairs_dict.items():
@@ -236,18 +243,24 @@ def send_waypoints():
                         # You can publish or trigger a flag here
                         # stop_pub.publish("stop") or similar logic
                         break
-
+            
+            
             if is_new_chair:
                 Chairs_dict[f"chair_{cnt}"] = {}  # Initialize dictionary entry
                 Chairs_dict[f"chair_{cnt}"]["position"] = transformed_pos
                 Chairs_dict[f"chair_{cnt}"]["record"] = True
-                Chairs_dict[f"chair_{cnt}"]["ori"] = tag_yaw
+                Chairs_dict[f"chair_{cnt}"]["ori"] = tag_roll + 1.57
                 if Chairs_dict[f"chair_{cnt}"]["position"][1] < 0:
-                    waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0] , Chairs_dict[f"chair_{cnt}"]["position"][1] - 1.3, Chairs_dict[f"chair_{cnt}"]["ori"])]
+                    x_chair, y_chair, _ = Chairs_dict[f"chair_{cnt}"]["position"]
+                    yaw_chair = Chairs_dict[f"chair_{cnt}"]["ori"]
+                    waypoints = [compute_waypoint(x_chair, y_chair, yaw_chair)]
                     pre_pos = waypoints
                 elif Chairs_dict[f"chair_{cnt}"]["position"][1] > 0:
-                    waypoints = [(Chairs_dict[f"chair_{cnt}"]["position"][0] , Chairs_dict[f"chair_{cnt}"]["position"][1] + 1.3, Chairs_dict[f"chair_{cnt}"]["ori"])]
+                    x_chair, y_chair, _ = Chairs_dict[f"chair_{cnt}"]["position"]
+                    yaw_chair = Chairs_dict[f"chair_{cnt}"]["ori"]
+                    waypoints = [compute_waypoint(x_chair, y_chair, yaw_chair)]
                     pre_pos = waypoints
+
 
                 for waypoint in waypoints:
                     x, y, theta = waypoint
@@ -270,7 +283,7 @@ def send_waypoints():
                     state = client.get_state()
                     if state == 3:  
                         cnt = cnt + 1
-                        tag_yaw = 0
+                        tag_roll = None
                         rospy.loginfo("Successfully reached goal: {}".format(waypoint))
                         print("\n")
                     else:
@@ -278,42 +291,24 @@ def send_waypoints():
                         search_tag = True
                         rospy.logwarn("Failed to reach goal: {} with state: {}".format(waypoint, state))
                         print("\n")
-
-            # chair_1_pos = Chairs_dict["chair_1"]["position"]
-            # x1, y1, _ = chair_1_pos
-            # for chair_key, chair_data in Chairs_dict.items():
-            #     if chair_key != "chair_1" and "position" in chair_data:
-            #         chair_pos = chair_data["position"]
-            #         x2, y2, _ = chair_pos
-            #         distance = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-            #         rospy.loginfo(f"Distance between chair_1 and {chair_key}: {distance:.2f} meters")
-            #         if distance < 0.56:
-            #             rospy.loginfo(f"Distance < 0.56 meters. Sending stop flag for {chair_key}.")
+            else:
+                for pre_pos_ in pre_pos:
+                    print(f"searching {cnt}'th chair ...")
+                    twist = Twist()
+                    twist.angular.z = -1  # Positive = counter-clockwise rotation
+                    cmd_vel_pub.publish(twist)
         else:
             for pre_pos_ in pre_pos:
                 print(f"searching {cnt}'th chair ...")
                 twist = Twist()
                 twist.angular.z = -1  # Positive = counter-clockwise rotation
                 cmd_vel_pub.publish(twist)
-                # x, y, theta = pre_pos_
-                # goal = MoveBaseGoal()
-                # goal.target_pose.header = Header()
-                # goal.target_pose.header.stamp = rospy.Time.now()
-                # goal.target_pose.header.frame_id = "map"                
-                
-                # goal.target_pose.pose.position.x = x
-                # goal.target_pose.pose.position.y = y
-                # goal.target_pose.pose.position.z = 0.0
-                # goal.target_pose.pose.orientation.z = 1.0
-                # goal.target_pose.pose.orientation.w = 0.0
-                # client.send_goal(goal)
-                # state = client.get_state()
         
-        if search_tag:
-                print(f"searching {cnt}'th chair ...")
-                twist = Twist()
-                twist.angular.z = -1  # Positive = counter-clockwise rotation
-                cmd_vel_pub.publish(twist)
+        # if search_tag:
+        #         print(f"searching {cnt}'th chair ...")
+        #         twist = Twist()
+        #         twist.angular.z = -1  # Positive = counter-clockwise rotation
+        #         cmd_vel_pub.publish(twist)
         
         rospy.sleep(1)
         
