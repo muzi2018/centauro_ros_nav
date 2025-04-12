@@ -142,12 +142,13 @@ def tag_detections_callback(msg):
         except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as e:
             rospy.logwarn(f"TF transform failed: {e}")
 
-def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 0.9):
+def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 1.2):
     """
     Computes a goal pose in front of the chair, facing it.
     """
     # Move backwards from the chair along its facing direction (yaw)
     chair_yaw_degrees = math.degrees(chair_yaw)
+    yaw_goal = chair_yaw
     print("chair_x: ", chair_x)
     print("chair_y: ", chair_y)
     print("chair_yaw_degrees: ", chair_yaw_degrees)
@@ -171,7 +172,7 @@ def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 0.9):
         y_goal = chair_y + distance * math.cos(chair_yaw)
     
     # Robot should face the chair, so its yaw is same as chair's yaw
-    yaw_goal = chair_yaw
+    
     
     return x_goal, y_goal, yaw_goal
 
@@ -298,7 +299,8 @@ def send_waypoints():
                     goal.target_pose.pose.orientation.w = 1.0  
 
                     rospy.loginfo("Sending goal: {}".format(waypoint))
-                    
+                    client.cancel_all_goals()
+                    rospy.sleep(0.5)
                     client.send_goal(goal)
                     client.wait_for_result()
 
@@ -311,19 +313,23 @@ def send_waypoints():
                     else:
                         del Chairs_dict[f"chair_{cnt}"]
                         search_tag = True
+                        print(f"searching {cnt}'th chair ...")
+                        twist = Twist()
+                        twist.angular.z = -0.5  # Positive = counter-clockwise rotation
+                        cmd_vel_pub.publish(twist)
                         rospy.logwarn("Failed to reach goal: {} with state: {}".format(waypoint, state))
                         print("\n")
             else:
                 for pre_pos_ in pre_pos:
                     print(f"searching {cnt}'th chair ...")
                     twist = Twist()
-                    twist.angular.z = -1  # Positive = counter-clockwise rotation
+                    twist.angular.z = -0.5  # Positive = counter-clockwise rotation
                     cmd_vel_pub.publish(twist)
         else:
             for pre_pos_ in pre_pos:
                 print(f"searching {cnt}'th chair ...")
                 twist = Twist()
-                twist.angular.z = -1  # Positive = counter-clockwise rotation
+                twist.angular.z = -0.5  # Positive = counter-clockwise rotation
                 cmd_vel_pub.publish(twist)
         
         # if search_tag:
