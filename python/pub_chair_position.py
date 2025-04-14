@@ -17,7 +17,7 @@ class ChairTFBroadcaster:
     def chair_callback(self, msg):
         """Callback function to receive chair positions and update stored data."""
         try:
-            print("chair_callback")
+            # print("chair_callback")
             self.chair_positions = json.loads(msg.data)  # Convert JSON string to dictionary
         except json.JSONDecodeError:
             rospy.logerr("Failed to decode JSON message!")

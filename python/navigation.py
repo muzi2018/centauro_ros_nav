@@ -337,7 +337,7 @@ def send_waypoints():
             for pre_pos_ in pre_pos:
                 print(f"searching {cnt}'th chair ...")
                 twist = Twist()
-                twist.angular.z = -0.5  # Positive = counter-clockwise rotation
+                twist.angular.z = -0.3  # Positive = counter-clockwise rotation
                 cmd_vel_pub.publish(twist)
         
         # if search_tag:
