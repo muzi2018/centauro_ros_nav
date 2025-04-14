@@ -44,6 +44,8 @@ search_tag = False
 width = 10
 height = 10
 
+finito = 0
+
 Chairs_dict = {}
 update_flag = True
 tag_yaw = None
@@ -143,7 +145,7 @@ def tag_detections_callback(msg):
                 # print("distance: ", distance)
                 # print("tag_id:---", tag_id)
                 # print("transformed_pos: ", transformed_pos)
-                if distance < 0.7:
+                if distance < 1.4:
                     tag_yaw = euler_map[2]
                     tag_orientation = map_orientation
                 # print("tag_roll: ", tag_roll)
@@ -236,7 +238,7 @@ def callback(msg):
 transformed_pos = []
 cnt = 1
 def send_waypoints():
-    global cnt, tag_roll, search_tag, tag_yaw, tag_orientation
+    global cnt, tag_roll, search_tag, tag_yaw, tag_orientation, finito
     global tf_buffer, tf_listener
     rospy.init_node('send_waypoints', anonymous=True)
     os.environ['ROSCONSOLE_CONFIG_FILE'] = os.path.expanduser('~/.ros/rosconsole.config')
@@ -279,6 +281,7 @@ def send_waypoints():
             
             
             if is_new_chair:
+                finito = 0
                 Chairs_dict[f"chair_{cnt}"] = {}  # Initialize dictionary entry
                 Chairs_dict[f"chair_{cnt}"]["position"] = transformed_pos
                 Chairs_dict[f"chair_{cnt}"]["record"] = True
@@ -330,7 +333,10 @@ def send_waypoints():
                         search_tag = True
                         print(f"searching {cnt}'th chair ...")
                         twist = Twist()
-                        twist.angular.z = -0.5  # Positive = counter-clockwise rotation
+                        twist.angular.z = -0.35  # Positive = counter-clockwise rotation
+                        finito = finito + twist.angular.z
+                        print("finito = ", finito)
+
                         cmd_vel_pub.publish(twist)
                         rospy.logwarn("Failed to reach goal: {} with state: {}".format(waypoint, state))
                         print("\n")
@@ -338,14 +344,24 @@ def send_waypoints():
                 for pre_pos_ in pre_pos:
                     print(f"searching {cnt}'th chair ...")
                     twist = Twist()
-                    twist.angular.z = -0.5  # Positive = counter-clockwise rotation
+                    twist.angular.z = -0.35  # Positive = counter-clockwise rotation
+                    finito = finito + twist.angular.z
+                    print("finito = ", finito)
+
                     cmd_vel_pub.publish(twist)
         else:
             for pre_pos_ in pre_pos:
                 print(f"searching {cnt}'th chair ...")
                 twist = Twist()
-                twist.angular.z = -0.3  # Positive = counter-clockwise rotation
+                twist.angular.z = -0.35  # Positive = counter-clockwise rotation
+                finito = finito + twist.angular.z
+                print("finito = ", finito)
                 cmd_vel_pub.publish(twist)
+        
+        if finito <= -6:
+            rospy.loginfo("Completed full 360-degree rotation. Shutting down.")
+            rospy.signal_shutdown("Search complete")
+            break
         
         # if search_tag:
         #         print(f"searching {cnt}'th chair ...")
