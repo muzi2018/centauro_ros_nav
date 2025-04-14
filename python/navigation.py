@@ -39,23 +39,6 @@ import tf2_ros
 from geometry_msgs.msg import PoseStamped
 
 
-def refresh_tag_parameters():
-    try:
-        dyn_client = Client("/apriltag_ros_continuous_node", timeout=5)  # Make sure this is the correct node name
-
-        params = {
-            "publish_tf": True,
-            "image_transport": "raw",
-            "standalone_tags": '[{id: 0, size: 0.2, name: "Tag_1"}]'  # IMPORTANT: must be a YAML-encoded string
-        }
-
-        dyn_client.update_configuration(params)
-        rospy.loginfo("AprilTag parameters refreshed.")
-    except Exception as e:
-        rospy.logerr("Failed to refresh AprilTag parameters: %s", str(e))
-
-
-
 
 search_tag = False
 width = 10
@@ -333,7 +316,6 @@ def send_waypoints():
                     if state == 3:  
                         cnt = cnt + 1
                         tag_yaw = None
-                        refresh_tag_parameters()
                         rospy.loginfo("Successfully reached goal: {}".format(waypoint))
                         print("\n")
                     else:

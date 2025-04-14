@@ -4,6 +4,7 @@ import json
 import tf2_ros
 import geometry_msgs.msg
 from std_msgs.msg import String
+import tf.transformations as tft  # Make sure to import this!
 
 class ChairTFBroadcaster:
     def __init__(self):
@@ -16,6 +17,7 @@ class ChairTFBroadcaster:
     def chair_callback(self, msg):
         """Callback function to receive chair positions and update stored data."""
         try:
+            print("chair_callback")
             self.chair_positions = json.loads(msg.data)  # Convert JSON string to dictionary
         except json.JSONDecodeError:
             rospy.logerr("Failed to decode JSON message!")
@@ -29,7 +31,11 @@ class ChairTFBroadcaster:
             for chair_id, chair_info in self.chair_positions.items():
                 if "position" in chair_info:
                     x, y, z = chair_info["position"]
+                    yaw = chair_info["ori"] 
+                    
+                    q = tft.quaternion_from_euler(0, 0, yaw)  # roll=0, pitch=0, yaw=yaw
 
+                    
                     transform = geometry_msgs.msg.TransformStamped()
                     transform.header.stamp = current_time  # Ensure timestamps are updated
                     transform.header.frame_id = "map"
@@ -39,13 +45,13 @@ class ChairTFBroadcaster:
                     transform.transform.translation.y = y
                     transform.transform.translation.z = z
 
-                    transform.transform.rotation.x = 0
-                    transform.transform.rotation.y = 0
-                    transform.transform.rotation.z = 0
-                    transform.transform.rotation.w = 1  # No rotation
+                    transform.transform.rotation.x = q[0]
+                    transform.transform.rotation.y = q[1]
+                    transform.transform.rotation.z = q[2]
+                    transform.transform.rotation.w = q[3]
 
                     self.tf_broadcaster.sendTransform(transform)
-                    rospy.loginfo(f"Published TF for {chair_id} at {x}, {y}, {z}")
+                    rospy.loginfo(f"Published TF for {chair_id} at {x}, {y}, {z}, yaw={yaw}")
 
             rate.sleep()  # Maintain the loop rate
 
