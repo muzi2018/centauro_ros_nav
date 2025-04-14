@@ -155,7 +155,7 @@ def tag_detections_callback(msg):
         except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as e:
             rospy.logwarn(f"TF transform failed: {e}")
 
-def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 1.2):
+def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 1):
     """
     Computes a goal pose in front of the chair, facing it.
     """
@@ -272,7 +272,7 @@ def send_waypoints():
                     distance = math.sqrt((x_curr - x_other)**2 + (y_curr - y_other)**2)
                     rospy.loginfo(f"Distance between current chair and {chair_key}: {distance:.2f} meters")
 
-                    if distance < 0.56:
+                    if distance < 0.75:
                         rospy.loginfo(f"Distance < 0.56 meters. Chair is too close to {chair_key}. Sending stop flag.")
                         is_new_chair = False
                         # You can publish or trigger a flag here
@@ -376,6 +376,7 @@ rospy.Subscriber('object_positions', String, callback)
 chairs_pub = rospy.Publisher('/chair_positions', String, queue_size=10)  # Define the publisher
 
 cmd_vel_pub = rospy.Publisher('/omnisteering/cmd_vel', Twist, queue_size=10)
+rospy.Subscriber('/omnisteering/cmd_vel', Twist, cmd_vel_callback)
 
 
 
