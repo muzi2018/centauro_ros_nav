@@ -49,6 +49,8 @@ update_flag = True
 tag_yaw = None
 tag_roll = None
 
+tag_orientation = None
+
 tf_buffer = None
 tf_listener = None
 
@@ -83,7 +85,7 @@ tf_listener = None
 
 
 def tag_detections_callback(msg):
-    global tag_yaw, tag_roll
+    global tag_yaw, tag_roll, tag_orientation
     global tf_buffer
 
     if not msg.detections:
@@ -143,6 +145,7 @@ def tag_detections_callback(msg):
                 # print("transformed_pos: ", transformed_pos)
                 if distance < 0.7:
                     tag_yaw = euler_map[2]
+                    tag_orientation = map_orientation
                 # print("tag_roll: ", tag_roll)
             else:
                 tag_yaw = None
@@ -233,7 +236,7 @@ def callback(msg):
 transformed_pos = []
 cnt = 1
 def send_waypoints():
-    global cnt, tag_roll, search_tag, tag_yaw
+    global cnt, tag_roll, search_tag, tag_yaw, tag_orientation
     global tf_buffer, tf_listener
     rospy.init_node('send_waypoints', anonymous=True)
     os.environ['ROSCONSOLE_CONFIG_FILE'] = os.path.expanduser('~/.ros/rosconsole.config')
@@ -302,9 +305,13 @@ def send_waypoints():
                     goal.target_pose.pose.position.x = x
                     goal.target_pose.pose.position.y = y
                     goal.target_pose.pose.position.z = 0.0
-                    goal.target_pose.pose.orientation.z = theta
+                    goal.target_pose.pose.orientation.x = 0
+                    goal.target_pose.pose.orientation.y = 0
+                    goal.target_pose.pose.orientation.z = tag_orientation.z
+                    goal.target_pose.pose.orientation.w = tag_orientation.w
+                    
                     print("theta: ", theta)
-                    goal.target_pose.pose.orientation.w = 1.0  
+                    # goal.target_pose.pose.orientation.w = 1.0  
 
                     rospy.loginfo("Sending goal: {}".format(waypoint))
                     client.cancel_all_goals()
