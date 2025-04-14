@@ -19,6 +19,7 @@ from apriltag_ros.msg import AprilTagDetectionArray
 import tf
 import math
 import os
+from dynamic_reconfigure.client import Client
 
 # map info
 # resolution: 0.05
@@ -37,6 +38,21 @@ from tf.transformations import euler_from_quaternion
 import tf2_ros
 from geometry_msgs.msg import PoseStamped
 
+
+def refresh_tag_parameters():
+    try:
+        dyn_client = Client("/apriltag_ros_continuous_node", timeout=5)  # Make sure this is the correct node name
+
+        params = {
+            "publish_tf": True,
+            "image_transport": "raw",
+            "standalone_tags": '[{id: 0, size: 0.2, name: "Tag_1"}]'  # IMPORTANT: must be a YAML-encoded string
+        }
+
+        dyn_client.update_configuration(params)
+        rospy.loginfo("AprilTag parameters refreshed.")
+    except Exception as e:
+        rospy.logerr("Failed to refresh AprilTag parameters: %s", str(e))
 
 
 
@@ -95,11 +111,12 @@ def tag_detections_callback(msg):
         # tf_buffer = tf2_ros.Buffer()
         # tf_listener = tf2_ros.TransformListener(tf_buffer)
         tag_id = detection.id[0]
+        
         pose = detection.pose.pose.pose  # geometry_msgs/Pose
         
         position = pose.position
         orientation = pose.orientation
-
+        # print("tag_id:---", tag_id)
         # rospy.loginfo(f"Detected AprilTag ID: {tag_id}")
         # rospy.loginfo(f"Position in camera frame: ({position.x:.2f}, {position.y:.2f}, {position.z:.2f})")
         # rospy.loginfo(f"Orientation in camera frame (Quaternion): ({orientation.x:.2f}, {orientation.y:.2f}, {orientation.z:.2f}, {orientation.w:.2f})")
@@ -119,6 +136,11 @@ def tag_detections_callback(msg):
 
             # Extract orientation in map frame
             map_orientation = map_pose_stamped.pose.orientation
+            map_tag_x = map_pose_stamped.pose.position.x
+            map_tag_y = map_pose_stamped.pose.position.y
+            map_tag_z = map_pose_stamped.pose.position.z
+            
+            
             euler_map = euler_from_quaternion([
                 map_orientation.x,
                 map_orientation.y,
@@ -126,15 +148,18 @@ def tag_detections_callback(msg):
                 map_orientation.w
             ])
 
-            # print("tag_yaw: ", euler_map[2])
-            
-            # print("tag_pitch: ", -euler_map[1])
-            # print("tag_yaw: ", -euler_map[2])
-            
-            # print("tag_yaw: ", tag_yaw)
-            # rospy.loginfo(f"Orientation in MAP frame (Euler): Roll = {euler_map[0]:.2f}, Pitch = {euler_map[1]:.2f}, Yaw = {euler_map[2]:.2f}")
             if "chair" in obj_dict:
-                tag_yaw = euler_map[2]
+                transformer = TransformChairPosition()
+                transformed_pos = transformer.transform_point(*obj_dict["chair"]["position"])
+                chair_x, chair_y, chair_z = transformed_pos
+                distance = math.sqrt((map_tag_x - chair_x)**2 + 
+                                    (map_tag_y - chair_y)**2 + 
+                                    (map_tag_z - chair_z)**2)
+                # print("distance: ", distance)
+                # print("tag_id:---", tag_id)
+                # print("transformed_pos: ", transformed_pos)
+                if distance < 0.7:
+                    tag_yaw = euler_map[2]
                 # print("tag_roll: ", tag_roll)
             else:
                 tag_yaw = None
@@ -308,6 +333,7 @@ def send_waypoints():
                     if state == 3:  
                         cnt = cnt + 1
                         tag_yaw = None
+                        refresh_tag_parameters()
                         rospy.loginfo("Successfully reached goal: {}".format(waypoint))
                         print("\n")
                     else:
