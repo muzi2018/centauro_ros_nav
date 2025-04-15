@@ -155,7 +155,7 @@ def tag_detections_callback(msg):
         except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as e:
             rospy.logwarn(f"TF transform failed: {e}")
 
-def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 1):
+def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 1.1):
     """
     Computes a goal pose in front of the chair, facing it.
     """
@@ -188,6 +188,21 @@ def compute_waypoint(chair_x, chair_y, chair_yaw, distance = 1):
     
     
     return x_goal, y_goal, yaw_goal
+
+def get_robot_yaw():
+    try:
+        transform = tf_buffer.lookup_transform("map", "pelvis", rospy.Time(0), rospy.Duration(1.0))
+        orientation_q = transform.transform.rotation
+        euler = euler_from_quaternion([
+            orientation_q.x,
+            orientation_q.y,
+            orientation_q.z,
+            orientation_q.w
+        ])
+        return euler[2]  # Yaw
+    except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as e:
+        rospy.logwarn(f"TF error in get_robot_yaw(): {e}")
+        return None
 
 
 class TransformChairPosition:
@@ -237,8 +252,11 @@ def callback(msg):
 
 transformed_pos = []
 cnt = 1
+previous_yaw = None
+delta_yaw = None
+
 def send_waypoints():
-    global cnt, tag_roll, search_tag, tag_yaw, tag_orientation, finito
+    global cnt, tag_roll, search_tag, tag_yaw, tag_orientation, finito, previous_yaw, delta_yaw
     global tf_buffer, tf_listener
     rospy.init_node('send_waypoints', anonymous=True)
     os.environ['ROSCONSOLE_CONFIG_FILE'] = os.path.expanduser('~/.ros/rosconsole.config')
@@ -261,6 +279,10 @@ def send_waypoints():
     rospy.loginfo("Connected to move_base server")
     while not rospy.is_shutdown():    
         print("tag_yaw = ", tag_yaw)
+
+        if previous_yaw is None:
+            previous_yaw = get_robot_yaw()
+        
         if "chair" in obj_dict and tag_yaw != None:
             print("obj_dict :", obj_dict)
             transformed_pos = transformer.transform_point(*obj_dict["chair"]["position"])
@@ -281,7 +303,6 @@ def send_waypoints():
             
             
             if is_new_chair:
-                finito = 0
                 Chairs_dict[f"chair_{cnt}"] = {}  # Initialize dictionary entry
                 Chairs_dict[f"chair_{cnt}"]["position"] = transformed_pos
                 Chairs_dict[f"chair_{cnt}"]["record"] = True
@@ -323,6 +344,8 @@ def send_waypoints():
                     client.wait_for_result()
 
                     state = client.get_state()
+                    
+                    previous_yaw = get_robot_yaw()
                     if state == 3:  
                         cnt = cnt + 1
                         tag_yaw = None
@@ -334,34 +357,41 @@ def send_waypoints():
                         print(f"searching {cnt}'th chair ...")
                         twist = Twist()
                         twist.angular.z = -0.35  # Positive = counter-clockwise rotation
-                        finito = finito + twist.angular.z
-                        print("finito = ", finito)
-
-                        cmd_vel_pub.publish(twist)
+                        current_yaw = get_robot_yaw()
+                        delta_yaw = current_yaw - previous_yaw
                         rospy.logwarn("Failed to reach goal: {} with state: {}".format(waypoint, state))
                         print("\n")
+                        cmd_vel_pub.publish(twist)
+                        print("current_yaw : ", current_yaw)
+                        print("previous_yaw : ", previous_yaw)
+                        print("delta_yaw : ", delta_yaw)
+                        
             else:
-                for pre_pos_ in pre_pos:
-                    print(f"searching {cnt}'th chair ...")
-                    twist = Twist()
-                    twist.angular.z = -0.35  # Positive = counter-clockwise rotation
-                    finito = finito + twist.angular.z
-                    print("finito = ", finito)
-
-                    cmd_vel_pub.publish(twist)
-        else:
-            for pre_pos_ in pre_pos:
                 print(f"searching {cnt}'th chair ...")
                 twist = Twist()
                 twist.angular.z = -0.35  # Positive = counter-clockwise rotation
-                finito = finito + twist.angular.z
-                print("finito = ", finito)
+                current_yaw = get_robot_yaw()
+                delta_yaw = current_yaw - previous_yaw
                 cmd_vel_pub.publish(twist)
-        
-        if finito <= -6:
-            rospy.loginfo("Completed full 360-degree rotation. Shutting down.")
-            rospy.signal_shutdown("Search complete")
-            break
+                print("current_yaw : ", current_yaw)
+                print("previous_yaw : ", previous_yaw)
+                print("delta_yaw : ", delta_yaw)
+                
+        else:
+            print(f"searching {cnt}'th chair ...")
+            twist = Twist()
+            twist.angular.z = -0.35  # Positive = counter-clockwise rotation
+            current_yaw = get_robot_yaw()
+            delta_yaw = current_yaw - previous_yaw
+            cmd_vel_pub.publish(twist)
+            print("current_yaw : ", current_yaw)
+            print("previous_yaw : ", previous_yaw)
+            print("delta_yaw : ", delta_yaw)
+    
+        # if delta_yaw  <= -6:
+        #     rospy.loginfo("Completed full 360-degree rotation. Shutting down.")
+        #     rospy.signal_shutdown("Search complete")
+        #     break
         
         # if search_tag:
         #         print(f"searching {cnt}'th chair ...")
@@ -371,12 +401,20 @@ def send_waypoints():
         
         rospy.sleep(1)
         
+
+
+# def cmd_vel_callback(msg):
+#     yaw = calc.update(msg)
+#     if yaw is not None:
+#         yaw_degrees = math.degrees(yaw)
+#         print(f"Current orientation: {yaw_degrees:.2f} degrees")
+        
 rospy.Subscriber('object_positions', String, callback)
 
 chairs_pub = rospy.Publisher('/chair_positions', String, queue_size=10)  # Define the publisher
 
 cmd_vel_pub = rospy.Publisher('/omnisteering/cmd_vel', Twist, queue_size=10)
-rospy.Subscriber('/omnisteering/cmd_vel', Twist, cmd_vel_callback)
+# rospy.Subscriber('/omnisteering/cmd_vel', Twist, cmd_vel_callback)
 
 
 
